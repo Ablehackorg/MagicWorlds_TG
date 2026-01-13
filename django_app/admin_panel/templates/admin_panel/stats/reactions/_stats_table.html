@@ -1,0 +1,54 @@
+{% load static %}
+
+<p class="text-muted mb-2">
+  Неделя: {{ week_start|date:"d.m.Y" }} — {{ week_end|date:"d.m.Y" }}
+</p>
+
+<div class="table-responsive">
+  <table class="table table-bordered table-hover"
+         id="reactionStatsTable"
+         data-sortable data-paginate>
+    <thead>
+      <tr>
+        <th data-type="number">ID задачи</th>
+        <th data-type="text">Канал</th>
+        <th data-type="number">Кол-во постов</th>
+        <th data-type="number">Реакций на пост</th>
+        <th data-type="number">Частота запуска (дни)</th>
+        <th data-type="number">Пн</th>
+        <th data-type="number">Вт</th>
+        <th data-type="number">Ср</th>
+        <th data-type="number">Чт</th>
+        <th data-type="number">Пт</th>
+        <th data-type="number">Сб</th>
+        <th data-type="number">Вс</th>
+        <th data-type="number">За неделю</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.task_id }}</td>
+        <td>{{ row.channel_name }}</td>
+        <td>{{ row.posts_count }}</td>
+        <td>{{ row.reactions_per_post }}</td>
+        <td>{{ row.frequency_days }}</td>
+        <td>{{ row.days.0|default:"0" }}</td>
+        <td>{{ row.days.1|default:"0" }}</td>
+        <td>{{ row.days.2|default:"0" }}</td>
+        <td>{{ row.days.3|default:"0" }}</td>
+        <td>{{ row.days.4|default:"0" }}</td>
+        <td>{{ row.days.5|default:"0" }}</td>
+        <td>{{ row.days.6|default:"0" }}</td>
+        <td>{{ row.total }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="13" class="text-center text-muted">
+          Нет данных за выбранный период
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

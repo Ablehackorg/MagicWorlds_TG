@@ -1,0 +1,110 @@
+{% extends "adminlte/base.html" %}
+{% load static %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h1 class="mb-0">Telegram-сообщества</h1>
+      <span class="col-toggle-btn" title="Управление столбцами">
+        <i class="fas fa-cog"></i>
+      </span>
+    </div>
+
+    <div class="d-flex justify-content-end mb-3">
+      <a href="{% url 'admin_panel:entities_add' %}" class="btn btn-add">
+        <i class="fas fa-plus"></i> Добавить
+      </a>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover"
+             id="entitiesTable" data-sortable data-paginate>
+        <thead>
+          <tr>
+            <th data-type="number">ID</th>
+            <th data-type="text">Название</th>
+            <th data-type="number">Порядок</th>
+            <th data-type="text">Страна</th>
+            <th data-type="text">Категория</th>
+            <th data-type="text">Владелец</th>
+            <th data-type="text">Тип</th>
+            <th data-type="text">Теги</th>
+            <th data-type="number">Кол-во задач</th>
+            <th class="no-sort" data-sortable="false">Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in entities %}
+          <tr>
+            <td>{{ e.id }}</td>
+            <td>{{ e.name|default_if_none:"" }}</td>
+            <td>{{ e.order|default_if_none:"" }}</td>
+            <td>{{ e.country|default_if_none:"" }}</td>
+            <td>{{ e.category|default_if_none:"" }}</td>
+            <td>{{ e.owner|default_if_none:"" }}</td>
+            <td>
+              {% if e.destination_type %}
+                <span>{{ e.destination_type }}</span>
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td class="tags-cell">
+              {% for t in e.tags_list %}
+                <span class="badge-tag">{{ t }}</span>
+              {% endfor %}
+            </td>
+            <td class="text-center">{{ e.cached_task_count }}</td>
+            <td class="text-center">
+              {% if e.link %}
+                <a href="{{ e.link }}" target="_blank" title="Открыть">
+                  <img src="{% static 'admin_panel/img/search.png' %}" class="icon-16">
+                </a>
+              {% endif %}
+              <a href="{% url 'admin_panel:entities_edit' e.id %}" title="Редактировать">
+                <img src="{% static 'admin_panel/img/edit.png' %}" class="icon-16">
+              </a>
+              <form method="post"
+                    action="{% url 'admin_panel:entities_delete' e.id %}"
+                    class="d-inline"
+                    onsubmit="return confirm('Удалить {{ e.entity_type }} id={{ e.id }}?')">
+                {% csrf_token %}
+                <button type="submit" class="delete-btn" title="Удалить">
+                  <img src="{% static 'admin_panel/img/delete.png' %}" class="icon-16">
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="10" class="text-center text-muted">Нет сообществ</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<script type="module">
+import {initSortableTables} from "{% static 'admin_panel/js/sortableTable.js' %}";
+import {initTablePagination} from "{% static 'admin_panel/js/pagination.js' %}";
+import {initValueFilters} from "{% static 'admin_panel/js/valueFilters.js' %}";
+import "{% static 'admin_panel/js/colToggles.js' %}";
+
+initSortableTables();
+initTablePagination(20);
+
+// Инициализация кнопок фильтров
+initValueFilters({
+  tableSelector: "#entitiesTable",
+  columns: ["Страна", "Категория"],          // автоматически собирает уникальные значения
+  controlsContainerSelector: ".d-flex.justify-content-end.mb-3",
+  beforeSelector: "a.btn-add",
+  resort: (table) => {
+    // пересортировка при отмене фильтра
+    const st = new SortableTable(table);
+  },
+  debug: false
+});
+</script>
+
+{% endblock %}

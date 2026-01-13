@@ -1,0 +1,3303 @@
+{% extends "adminlte/base.html" %}
+{% load static %}
+
+{% block body_class %}page-scroll{% endblock %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <!-- Верхняя полоса с кнопками -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="d-flex align-items-center">
+        <h1 class="mb-0 mr-3">Настройки бустера</h1>
+        <div class="btn-toolbar" role="toolbar">
+          <button form="main-form" type="submit" class="btn btn-success mr-2">Сохранить</button>
+          <a href="{% url 'admin_panel:dashboard' %}" class="btn btn-secondary">Назад</a>
+        </div>
+      </div>
+    </div>
+
+    <form method="post" id="main-form">
+      {% csrf_token %}
+      
+      <!-- === УЧЁТНАЯ ЗАПИСЬ === -->
+      <div class="section-bar">Учётная запись</div>
+      <div class="form-rows">
+        
+        <!-- Ссылка на биржу -->
+        <div class="form-row">
+          <div class="left">Ссылка на биржу</div>
+          <div class="right d-flex align-items-center" style="gap:12px;">
+            <input type="url" class="form-control" name="url" value="{{ settings.url }}" placeholder="https://twiboost.com">
+          </div>
+        </div>
+
+        <!-- Токен биржи -->
+        <div class="form-row">
+          <div class="left">Токен биржи</div>
+          <div class="right d-flex align-items-center flex-wrap" style="gap:12px;">
+            <input type="text" class="form-control" name="api_key" value="{{ settings.api_key }}" placeholder="API key / токен доступа" style="max-width:360px;">
+            <button type="button" class="btn btn-outline-primary btn-sm" id="refreshStatusBtn">
+              Обновить
+            </button>
+            <div class="d-flex align-items-center" style="gap:8px;">
+              <span class="text-muted small">Текущий статус</span>
+              <span class="status-dot {% if api_ok %}green{% else %}red{% endif %}" id="apiStatusDot"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Текущий баланс биржи -->
+        <div class="form-row">
+          <div class="left">Текущий баланс биржи</div>
+          <div class="right d-flex align-items-center flex-wrap" style="gap:12px;">
+            <div class="d-flex align-items-center" style="gap:6px;">
+              <span id="balanceValue">{{ settings.balance }}</span> ₽
+            </div>
+            <div class="text-muted small" id="lastCheckWrapper">
+              На <span id="lastCheck">{{ settings.last_balance_check|date:"d.m.Y H:i" }}</span>
+            </div>
+            <button type="button" class="btn btn-outline-primary btn-sm" id="refreshBalanceBtn">
+              Обновить
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- === ТАРИФНЫЕ ПЛАНЫ === -->
+      <div class="section-bar">Тарифные планы</div>
+      <div class="form-rows">
+        
+        <!-- Просмотры старых постов -->
+        <div class="form-row module-section">
+          <div class="left">
+            <div class="module-name">Просмотры старых постов</div>
+          </div>
+          <div class="right">
+            <!-- Список тарифов -->
+            <div class="tariffs-list" data-module="old_views">
+              {% for tariff in tariffs.old_views %}
+              <div class="tariff-row d-flex align-items-center gap-2 mb-2">
+                <span class="text-muted">ID =</span>
+                <input type="number" name="old_views_id_{{ forloop.counter }}" class="form-control form-control-sm" style="width:80px;" value="{{ tariff.service_id }}">
+                <span class="text-muted">Лимит: от</span>
+                <input type="number" name="old_views_min_{{ forloop.counter }}" class="form-control form-control-sm" style="width:80px;" value="{{ tariff.min_limit }}">
+                <span class="text-muted">Тариф за 1000:</span>
+                <input type="number" step="0.01" name="old_views_tariff_{{ forloop.counter }}" class="form-control form-control-sm" style="width:80px;" value="{{ tariff.price_per_1000 }}">
+                <input type="hidden" name="old_views_active_{{ forloop.counter }}" value="{% if tariff.is_active %}1{% else %}0{% endif %}">
+                <div class="target-actions text-nowrap">
+                  {% if tariff.is_active %}
+                    <img src="{% static 'admin_panel/img/play.png' %}" class="icon-16 toggle-icon-tariff" data-value="1" data-index="{{ forloop.counter }}" data-module="old_views" title="Активен">
+                    <img src="{% static 'admin_panel/img/pause_gray.png' %}" class="icon-16 toggle-icon-tariff" data-value="0" data-index="{{ forloop.counter }}" data-module="old_views" title="Неактивен">
+                  {% else %}
+                    <img src="{% static 'admin_panel/img/play_gray.png' %}" class="icon-16 toggle-icon-tariff" data-value="1" data-index="{{ forloop.counter }}" data-module="old_views" title="Активен">
+                    <img src="{% static 'admin_panel/img/pause.png' %}" class="icon-16 toggle-icon-tariff" data-value="0" data-index="{{ forloop.counter }}" data-module="old_views" title="Неактивен">
+                  {% endif %}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            
+            <!-- Кнопка добавления тарифа -->
+            <div class="mb-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm add-tariff" data-module="old_views">Добавить тариф</button>
+            </div>
+            
+            <!-- Глобальный свитч -->
+            <div class="global-switch d-flex align-items-center gap-2">
+              <span class="text-muted">Выкл</span>
+              <label class="switch">
+                <input type="checkbox" name="is_active_old_views" {% if settings.is_active_old_views %}checked{% endif %}>
+                <span class="slider round"></span>
+              </label>
+              <span class="text-muted">Вкл</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Разделитель -->
+        <div class="module-divider"></div>
+
+        <!-- Умные просмотры новых постов -->
+        <div class="form-row module-section">
+          <div class="left">
+            <div class="module-name">Умные просмотры новых постов</div>
+          </div>
+          <div class="right">
+            <!-- Список тарифов -->
+            <div class="tariffs-list" data-module="new_views">
+              {% for tariff in tariffs.new_views %}
+              <div class="tariff-row d-flex align-items-center gap-2 mb-2">
+                <span class="text-muted">ID =</span>
+                <input type="number" name="new_views_id_{{ forloop.counter }}" class="form-control form-control-sm" style="width:80px;" value="{{ tariff.service_id }}">
+                <span class="text-muted">Лимит: от</span>
+                <input type="number" name="new_views_min_{{ forloop.counter }}" class="form-control form-control-sm" style="width:80px;" value="{{ tariff.min_limit }}">
+                <span class="text-muted">Тариф за 1000:</span>
+                <input type="number" step="0.01" name="new_views_tariff_{{ forloop.counter }}" class="form-control form-control-sm" style="width:80px;" value="{{ tariff.price_per_1000 }}">
+                <input type="hidden" name="new_views_active_{{ forloop.counter }}" value="{% if tariff.is_active %}1{% else %}0{% endif %}">
+                <div class="target-actions text-nowrap">
+                  {% if tariff.is_active %}
+                    <img src="{% static 'admin_panel/img/play.png' %}" class="icon-16 toggle-icon-tariff" data-value="1" data-index="{{ forloop.counter }}" data-module="new_views" title="Активен">
+                    <img src="{% static 'admin_panel/img/pause_gray.png' %}" class="icon-16 toggle-icon-tariff" data-value="0" data-index="{{ forloop.counter }}" data-module="new_views" title="Неактивен">
+                  {% else %}
+                    <img src="{% static 'admin_panel/img/play_gray.png' %}" class="icon-16 toggle-icon-tariff" data-value="1" data-index="{{ forloop.counter }}" data-module="new_views" title="Активен">
+                    <img src="{% static 'admin_panel/img/pause.png' %}" class="icon-16 toggle-icon-tariff" data-value="0" data-index="{{ forloop.counter }}" data-module="new_views" title="Неактивен">
+                  {% endif %}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            
+            <!-- Кнопка добавления тарифа -->
+            <div class="mb-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm add-tariff" data-module="new_views">Добавить тариф</button>
+            </div>
+            
+            <!-- Глобальный свитч -->
+            <div class="global-switch d-flex align-items-center gap-2">
+              <span class="text-muted">Выкл</span>
+              <label class="switch">
+                <input type="checkbox" name="is_active_new_views" {% if settings.is_active_new_views %}checked{% endif %}>
+                <span class="slider round"></span>
+              </label>
+              <span class="text-muted">Вкл</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Разделитель -->
+        <div class="module-divider"></div>
+
+        <!-- Подписчики каналов-групп -->
+        <div class="form-row module-section">
+          <div class="left">
+            <div class="module-name">Подписчики каналов-групп</div>
+          </div>
+          <div class="right">
+            <!-- Список тарифов -->
+            <div class="tariffs-list" data-module="subscribers">
+              {% for tariff in tariffs.subscribers %}
+              <div class="tariff-row d-flex align-items-center gap-2 mb-2">
+                <span class="text-muted">ID =</span>
+                <input type="number" name="subscribers_id_{{ forloop.counter }}" class="form-control form-control-sm" style="width:80px;" value="{{ tariff.service_id }}">
+                <span class="text-muted">Лимит: от</span>
+                <input type="number" name="subscribers_min_{{ forloop.counter }}" class="form-control form-control-sm" style="width:80px;" value="{{ tariff.min_limit }}">
+                <span class="text-muted">Тариф за 1000:</span>
+                <input type="number" step="0.01" name="subscribers_tariff_{{ forloop.counter }}" class="form-control form-control-sm" style="width:80px;" value="{{ tariff.price_per_1000 }}">
+                <input type="hidden" name="subscribers_active_{{ forloop.counter }}" value="{% if tariff.is_active %}1{% else %}0{% endif %}">
+                <div class="target-actions text-nowrap">
+                  {% if tariff.is_active %}
+                    <img src="{% static 'admin_panel/img/play.png' %}" class="icon-16 toggle-icon-tariff" data-value="1" data-index="{{ forloop.counter }}" data-module="subscribers" title="Активен">
+                    <img src="{% static 'admin_panel/img/pause_gray.png' %}" class="icon-16 toggle-icon-tariff" data-value="0" data-index="{{ forloop.counter }}" data-module="subscribers" title="Неактивен">
+                  {% else %}
+                    <img src="{% static 'admin_panel/img/play_gray.png' %}" class="icon-16 toggle-icon-tariff" data-value="1" data-index="{{ forloop.counter }}" data-module="subscribers" title="Активен">
+                    <img src="{% static 'admin_panel/img/pause.png' %}" class="icon-16 toggle-icon-tariff" data-value="0" data-index="{{ forloop.counter }}" data-module="subscribers" title="Неактивен">
+                  {% endif %}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            
+            <!-- Кнопка добавления тарифа -->
+            <div class="mb-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm add-tariff" data-module="subscribers">Добавить тариф</button>
+            </div>
+            
+            <!-- Глобальный свитч -->
+            <div class="global-switch d-flex align-items-center gap-2">
+              <span class="text-muted">Выкл</span>
+              <label class="switch">
+                <input type="checkbox" name="is_active_subscribers" {% if settings.is_active_subscribers %}checked{% endif %}>
+                <span class="slider round"></span>
+              </label>
+              <span class="text-muted">Вкл</span>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /form-rows тарифных планов -->
+
+      <!-- === АКТИВИРОВАН В КАНАЛАХ === -->
+      <div class="section-bar">Активирован в каналах</div>
+      <div class="form-rows">
+        <div class="form-row channels-section">
+          <div class="left d-flex align-items-center justify-content-between">
+            <div>Бот сервиса добавлен в каналы</div>
+            <button type="button" class="btn btn-outline-primary btn-sm" id="refreshChannelsBtn">Обновить список</button>
+          </div>
+          <div class="right">
+            <div class="channels-grid">
+              {% for ch in channels %}
+              <div class="channel-item d-flex align-items-center justify-content-between p-2 border rounded mb-2">
+                <span class="channel-name">{{ ch.target__name }}</span>
+              </div>
+              {% empty %}
+              <div class="text-muted small">Нет активных каналов</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- === СТАТИСТИКА СЕРВИСА === -->
+      <div class="section-bar">Статистика сервиса</div>
+      <div class="form-rows">
+        <div class="form-row">
+          <div class="left">Статистика</div>
+          <div class="right">
+            <a href="#" class="btn btn-outline-primary btn-sm">Перейти к статистике</a>
+          </div>
+        </div>
+      </div>
+
+    </form>
+  </div>
+</section>
+
+<style>
+.section-bar{
+  background:#e9ecef;
+  color:#2e3a46;
+  font-weight:600;
+  padding:8px 12px;
+  margin:14px 0 6px;
+  border-radius:4px;
+  border:1px solid #dee2e6;
+}
+.form-rows{
+  border:1px solid #e9ecef;
+  border-radius:6px;
+  background:#fff;
+  margin-bottom:8px;
+}
+.form-row{
+  display:grid;
+  grid-template-columns:240px 1fr;
+  grid-gap:12px;
+  align-items:start;
+  padding:10px 12px;
+  border-top:1px solid #f2f4f6;
+}
+.form-row:first-child{border-top:0;}
+.form-row .left{
+  font-weight:600;
+  color:#495057;
+}
+.icon-16{
+  width:16px;
+  height:16px;
+  cursor:pointer;
+  opacity:.9;
+}
+.icon-16:hover{opacity:1;}
+.status-dot{
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  display:inline-block;
+}
+.status-dot.green{background:#28a745;}
+.status-dot.red{background:#dc3545;}
+
+/* Стили для модулей тарифов */
+.module-section {
+  padding: 15px 12px;
+}
+.module-name {
+  font-weight: 600;
+  color: #2e3a46;
+}
+.module-divider {
+  height: 1px;
+  background: #e9ecef;
+  margin: 0 12px;
+}
+.tariff-row {
+  background: #f8f9fa;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+  margin-left: 0;
+}
+
+/* Стили для свитча */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+}
+input:checked + .slider {
+  background-color: #28a745;
+}
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+.slider.round {
+  border-radius: 24px;
+}
+.slider.round:before {
+  border-radius: 50%;
+}
+.global-switch {
+  margin-top: 10px;
+}
+
+/* Стили для каналов */
+.channels-section .left {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+.channels-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.channel-item {
+  background: #f8f9fa;
+  min-height: 40px;
+}
+.channel-item:hover {
+  background: #e9ecef;
+}
+.channel-name {
+  font-size: 0.9em;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const baseImg = "{% static 'admin_panel/img/' %}";
+
+  // === Переключение статуса тарифа ===
+  document.querySelectorAll(".toggle-icon-tariff").forEach(icon => {
+    icon.addEventListener("click", () => {
+      const module = icon.dataset.module;
+      const index = icon.dataset.index;
+      const activeNow = icon.dataset.value === "1";
+      const hiddenInput = document.querySelector(`input[name="${module}_active_${index}"]`);
+      
+      if (hiddenInput) {
+        hiddenInput.value = activeNow ? "1" : "0";
+
+        const row = icon.closest('.tariff-row');
+        const play = row.querySelector('.toggle-icon-tariff[data-value="1"]');
+        const pause = row.querySelector('.toggle-icon-tariff[data-value="0"]');
+
+        if (activeNow) {
+          play.src = baseImg + "play.png";
+          pause.src = baseImg + "pause_gray.png";
+        } else {
+          play.src = baseImg + "play_gray.png";
+          pause.src = baseImg + "pause.png";
+        }
+      }
+    });
+  });
+
+  // === Добавление нового тарифа ===
+  document.querySelectorAll(".add-tariff").forEach(btn => {
+    btn.addEventListener("click", function() {
+      const module = this.dataset.module;
+      // Ищем список тарифов внутри того же правого блока
+      const rightBlock = this.closest('.right');
+      const list = rightBlock.querySelector('.tariffs-list');
+      
+      if (!list) {
+        console.error('Tariff list not found for module:', module);
+        return;
+      }
+      
+      const index = list.querySelectorAll('.tariff-row').length + 1;
+      
+      const newRow = document.createElement('div');
+      newRow.className = 'tariff-row d-flex align-items-center gap-2 mb-2';
+      newRow.innerHTML = `
+        <span class="text-muted">ID =</span>
+        <input type="number" name="${module}_id_${index}" class="form-control form-control-sm" style="width:80px;" value="0">
+        <span class="text-muted">Лимит: от</span>
+        <input type="number" name="${module}_min_${index}" class="form-control form-control-sm" style="width:80px;" value="0">
+        <span class="text-muted">Тариф за 1000:</span>
+        <input type="number" step="0.01" name="${module}_tariff_${index}" class="form-control form-control-sm" style="width:80px;" value="0">
+        <input type="hidden" name="${module}_active_${index}" value="1">
+        <div class="target-actions text-nowrap">
+          <img src="${baseImg}play.png" class="icon-16 toggle-icon-tariff" data-value="1" data-index="${index}" data-module="${module}" title="Активен">
+          <img src="${baseImg}pause_gray.png" class="icon-16 toggle-icon-tariff" data-value="0" data-index="${index}" data-module="${module}" title="Неактивен">
+        </div>
+      `;
+      list.appendChild(newRow);
+
+      // Добавляем обработчики для новых иконок
+      newRow.querySelectorAll('.toggle-icon-tariff').forEach(icon => {
+        icon.addEventListener('click', function() {
+          const module = this.dataset.module;
+          const index = this.dataset.index;
+          const activeNow = this.dataset.value === "1";
+          const hiddenInput = document.querySelector(`input[name="${module}_active_${index}"]`);
+          
+          if (hiddenInput) {
+            hiddenInput.value = activeNow ? "1" : "0";
+
+            const row = this.closest('.tariff-row');
+            const play = row.querySelector('.toggle-icon-tariff[data-value="1"]');
+            const pause = row.querySelector('.toggle-icon-tariff[data-value="0"]');
+
+            if (activeNow) {
+              play.src = baseImg + "play.png";
+              pause.src = baseImg + "pause_gray.png";
+            } else {
+              play.src = baseImg + "play_gray.png";
+              pause.src = baseImg + "pause.png";
+            }
+          }
+        });
+      });
+    });
+  });
+
+  // === Кнопка "Обновить список каналов" ===
+  const refreshChannelsBtn = document.getElementById("refreshChannelsBtn");
+  if (refreshChannelsBtn) {
+    refreshChannelsBtn.addEventListener("click", () => {
+      refreshChannelsBtn.disabled = true;
+      refreshChannelsBtn.textContent = "Обновление...";
+      
+      // Здесь можно добавить логику обновления списка каналов
+      setTimeout(() => {
+        refreshChannelsBtn.disabled = false;
+        refreshChannelsBtn.textContent = "Обновить список";
+      }, 1000);
+    });
+  }
+
+  // === Кнопка "Обновить" рядом с Токеном биржи ===
+  const refreshStatusBtn = document.getElementById("refreshStatusBtn");
+  const apiStatusDot = document.getElementById("apiStatusDot");
+
+  if (refreshStatusBtn) {
+    refreshStatusBtn.addEventListener("click", () => {
+      refreshStatusBtn.disabled = true;
+      refreshStatusBtn.textContent = "Обновление...";
+
+      fetch("{% url 'admin_panel:booster_check_ajax' %}?mode=status")
+        .then(r => r.json())
+        .then(data => {
+          apiStatusDot.classList.remove("green","red");
+          apiStatusDot.classList.add(data.status === "ok" ? "green" : "red");
+        })
+        .finally(() => {
+          refreshStatusBtn.disabled = false;
+          refreshStatusBtn.textContent = "Обновить";
+        });
+    });
+  }
+
+  // === Кнопка "Обновить" рядом с балансом ===
+  const refreshBalanceBtn = document.getElementById("refreshBalanceBtn");
+  const balanceValue = document.getElementById("balanceValue");
+  const lastCheck = document.getElementById("lastCheck");
+
+  if (refreshBalanceBtn) {
+    refreshBalanceBtn.addEventListener("click", () => {
+      refreshBalanceBtn.disabled = true;
+      refreshBalanceBtn.textContent = "Обновление...";
+
+      fetch("{% url 'admin_panel:booster_check_ajax' %}?mode=balance")
+        .then(r => r.json())
+        .then(data => {
+          if (data.balance !== null && data.balance !== undefined) {
+            balanceValue.textContent = data.balance;
+          }
+          if (data.last_balance_check) {
+            lastCheck.textContent = data.last_balance_check;
+          }
+          if (data.status){
+            apiStatusDot.classList.remove("green","red");
+            apiStatusDot.classList.add(data.status === "ok" ? "green" : "red");
+          }
+        })
+        .finally(() => {
+          refreshBalanceBtn.disabled = false;
+          refreshBalanceBtn.textContent = "Обновить";
+        });
+    });
+  }
+});
+</script>
+{% endblock %}{% extends "adminlte/base.html" %}
+{% load static %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h1 class="mb-0">Боты</h1>
+      <span class="col-toggle-btn" title="Управление столбцами">
+        <i class="fas fa-cog"></i>
+      </span>
+    </div>
+
+    <div class="d-flex justify-content-end mb-3">
+      <a href="{% url 'admin_panel:add_bot' %}" class="btn btn-add">
+        <i class="fas fa-plus"></i> Добавить
+      </a>
+    </div>
+
+    <!-- Встроенная панель редактирования -->
+    <div id="editPanel" class="card mb-4" style="display:none;">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h3 class="card-title mb-0">Редактирование ботов</h3>
+      </div>
+      <div class="card-body">
+        <ul class="nav nav-tabs" id="editTabs" role="tablist"></ul>
+        <div class="tab-content pt-3" id="editPanes"></div>
+        <div class="mt-3 text-right">
+          <button id="cancelEditBtn" class="btn btn-sm btn-secondary">Свернуть</button>
+          <button id="saveEditBtn" class="btn btn-success">Сохранить</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Таблица -->
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover" 
+         id="botsTable" data-sortable data-paginate>
+
+        <thead>
+          <tr>
+            <th style="width:80px;" data-type="number">ID</th>
+            <th data-type="text">Название</th>
+            <th style="width:160px;" class="text-center" data-sortable="false">Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for bot in bots %}
+          <tr data-id="{{ bot.id }}">
+            <td>{{ bot.id }}</td>
+            <td class="bot-name">{{ bot.name }}</td>
+            <td class="text-center">
+              <a href="https://t.me/{{ bot.phone|default:'' }}" target="_blank" title="Ссылка">
+                <img src="{% static 'admin_panel/img/search.png' %}" alt="Открыть" class="icon-16">
+              </a>
+              <a href="#" class="edit-link ml-2" title="Редактировать">
+                <img src="{% static 'admin_panel/img/edit.png' %}" alt="Редактировать" class="icon-16">
+              </a>
+              {# Готовый URL удаление — подставляет ВЬЮХА #}
+              <a href="{% url 'admin_panel:bot_delete' bot.id %}"
+                 class="delete-link ml-2 text-danger"
+                 title="Удалить">
+                 <img src="{% static 'admin_panel/img/delete.png' %}" alt="Удалить" class="icon-16">
+               </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="text-center text-muted">Ботов пока нет</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div id="botsToast" class="mt-3"></div>
+
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<!-- сортировка -->
+<script type="module">
+  import { initSortableTables } from "{% static 'admin_panel/js/sortableTable.js' %}";
+  import { initTablePagination } from "{% static 'admin_panel/js/pagination.js' %}";
+  import "{% static 'admin_panel/js/colToggles.js' %}";
+
+  initSortableTables();
+  initTablePagination(20); // 20 строк на страницу
+</script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // CSRF из cookie
+  function getCookie(name) {
+    const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return m ? m.pop() : "";
+  }
+  const csrftoken = getCookie("csrftoken");
+
+  const tableBody = document.querySelector("#botsTable");
+  const editPanel  = document.getElementById("editPanel");
+  const editTabs   = document.getElementById("editTabs");
+  const editPanes  = document.getElementById("editPanes");
+  const toastHost  = document.getElementById("botsToast");
+
+  function showToast(type, msg) {
+    const cls = {success:'alert-success', danger:'alert-danger', warn:'alert-warning', info:'alert-info'}[type] || 'alert-info';
+    toastHost.innerHTML = `<div class="alert ${cls} mb-0" role="alert">${msg}</div>`;
+    setTimeout(() => toastHost.innerHTML = "", 2500);
+  }
+
+  function openEditPanel(focusId=null) {
+    editTabs.innerHTML = "";
+    editPanes.innerHTML = "";
+    const rows = tableBody.querySelectorAll("tr[data-id]");
+    if (!rows.length) { showToast('info', 'Нет записей для редактирования'); return; }
+    rows.forEach((tr, idx) => {
+      const id = tr.dataset.id;
+      const name = tr.querySelector(".bot-name").textContent.trim();
+      const active = (focusId ? id === String(focusId) : idx === 0) ? "active" : "";
+      const show   = active ? "show active" : "";
+      editTabs.insertAdjacentHTML("beforeend", `
+        <li class="nav-item">
+          <a class="nav-link ${active}" data-toggle="tab" href="#bot-pane-${id}" role="tab">${name || ("Bot #" + id)}</a>
+        </li>`);
+      editPanes.insertAdjacentHTML("beforeend", `
+        <div class="tab-pane fade ${show}" id="bot-pane-${id}" role="tabpanel">
+          <input type="hidden" class="edit-id" value="${id}">
+          <div class="form-group">
+            <label>Название</label>
+            <input type="text" class="form-control edit-name" value="${name}">
+          </div>
+        </div>`);
+    });
+    editPanel.style.display = "block";
+    const firstTab = editTabs.querySelector('.nav-link.active');
+    if (firstTab && window.jQuery) jQuery(firstTab).tab('show');
+  }
+
+  tableBody.addEventListener("click", (e) => {
+    const edit = e.target.closest(".edit-link");
+    if (edit) {
+      e.preventDefault();
+      const id = edit.closest("tr").dataset.id;
+      openEditPanel(id);
+      return;
+    }
+
+    const del = e.target.closest(".delete-link");
+    if (del) {
+      e.preventDefault();
+      const tr   = del.closest("tr");
+      const id   = tr.dataset.id;
+      const name = tr.querySelector(".bot-name")?.textContent?.trim() || ("Bot #" + id);
+      const url  = del.getAttribute("href"); // ← готовый URL от views
+      if (!url) return;
+
+      if (!confirm(`Удалить бота «${name}» (ID ${id})?\nДействие необратимо.`)) return;
+
+      (async () => {
+        try {
+          const resp = await fetch(url, {
+            method: "POST",
+            headers: { "X-CSRFToken": csrftoken }
+          });
+          const data = await resp.json();
+          if (!resp.ok || data.success !== true) {
+            throw new Error(data.error || "Не удалось удалить");
+          }
+
+          tr.remove();
+
+          // подчистить редактор
+          const tab  = editTabs.querySelector(`a[href="#bot-pane-${id}"]`)?.parentElement;
+          const pane = editPanes.querySelector(`#bot-pane-${id}`);
+          tab && tab.remove();
+          pane && pane.remove();
+          if (!editTabs.querySelector(".nav-link")) {
+            editPanel.style.display = "none";
+          }
+
+          let msg = "Бот удалён";
+          if (data.details) {
+            const ok = Object.entries(data.details).filter(([,v]) => v && v.ok).map(([k]) => k).join(", ");
+            const fail = Object.entries(data.details).filter(([,v]) => v && v.ok === false)
+                           .map(([k,v]) => `${k}: ${v.status||''} ${v.error||''}`.trim()).join(" | ");
+            if (ok)   msg += `. Внешние сервисы: ок — ${ok}.`;
+            if (fail) msg += ` Ошибки: ${fail}.`;
+          }
+          showToast('success', msg);
+        } catch (err) {
+          showToast('danger', err.message);
+        }
+      })();
+    }
+  });
+
+  document.getElementById("cancelEditBtn").addEventListener("click", () => {
+    editPanel.style.display = "none";
+  });
+
+  // bulk update имён
+  document.getElementById("saveEditBtn").addEventListener("click", async () => {
+    const items = [];
+    editPanes.querySelectorAll(".tab-pane").forEach(pane => {
+      const id   = pane.querySelector(".edit-id")?.value;
+      const name = pane.querySelector(".edit-name")?.value?.trim();
+      if (id) items.push({ id, name });
+    });
+
+    if (!items.length) {
+      showToast('info', 'Нет изменений');
+      return;
+    }
+
+    try {
+      const resp = await fetch("{% url 'admin_panel:bots_bulk_update' %}", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrftoken
+        },
+        body: JSON.stringify({ items })
+      });
+      const data = await resp.json();
+
+      if (!resp.ok || (data.success !== true && data.success !== True)) {
+        throw new Error(data.error || "Ошибка сохранения");
+      }
+
+      items.forEach(({id, name}) => {
+        const row = tableBody.querySelector(`tr[data-id="${id}"]`);
+        if (row && name) row.querySelector(".bot-name").textContent = name;
+      });
+
+      if (data.errors && data.errors.length) {
+        showToast('warn', `Сохранено: ${data.updated}. Ошибок: ${data.errors.length}`);
+        console.warn("Ошибки сохранения:", data.errors);
+      } else {
+        showToast('success', 'Изменения сохранены');
+        editPanel.style.display = "none";
+      }
+    } catch (err) {
+      showToast('danger', err.message);
+    }
+  });
+});
+</script>
+{% endblock %}
+{% extends "adminlte/base.html" %}
+{% load static %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h1 class="mb-0">Категории</h1>
+      <span class="col-toggle-btn" title="Управление столбцами">
+        <i class="fas fa-cog"></i>
+      </span>
+    </div>
+
+    <div class="d-flex justify-content-end mb-3">
+      <button id="showAddBtn" class="btn btn-add"><i class="fas fa-plus"></i> Добавить</a>
+      </a>
+    </div>
+
+
+    <div id="addPanel" class="card mb-4" style="display:none;">
+      <div class="card-header"><h3 class="card-title">Новая категория</h3></div>
+      <div class="card-body">
+        <form id="addForm">
+          {% csrf_token %}
+          <div class="form-group">
+            <label for="name">Название</label>
+            <input type="text" name="name" id="name" class="form-control" required>
+          </div>
+          <div class="mt-3 text-right">
+            <button type="submit" class="btn btn-success">Сохранить</button>
+            <button type="button" id="cancelAddBtn" class="btn btn-secondary">Отмена</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="editPanel" class="card mb-4" style="display:none;">
+      <div class="card-header"><h3 class="card-title">Редактирование категории</h3></div>
+      <div class="card-body">
+        <ul class="nav nav-tabs" id="editTabs"></ul>
+        <div class="tab-content pt-3" id="editPanes"></div>
+        <div class="mt-3 text-right">
+          <button id="saveEditBtn" class="btn btn-success">Сохранить</button>
+          <button id="cancelEditBtn" class="btn btn-secondary">Отмена</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover" 
+         id="categoriesTable" data-sortable data-paginate>
+        <thead>
+          <tr>
+            <th data-type="number">ID</th>
+            <th data-type="text">Название</th>
+            <th class="no-sort" data-sortable="false">Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in categories %}
+          <tr data-id="{{ c.id }}">
+            <td>{{ c.id }}</td>
+            <td class="category-name">{{ c.name }}</td>
+            <td class="text-center">
+              <a href="#" class="edit-link" data-id="{{ c.id }}">
+                <img src="{% static 'admin_panel/img/edit.png' %}" alt="Редактировать" class="icon-16">
+              </a>
+              <a href="#" class="delete-link" data-id="{{ c.id }}">
+                <img src="{% static 'admin_panel/img/delete.png' %}" alt="Удалить" class="icon-16">
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</section>
+
+<script type="module">
+  import { initSortableTables } from "{% static 'admin_panel/js/sortableTable.js' %}";
+  import { initTablePagination } from "{% static 'admin_panel/js/pagination.js' %}";
+  import "{% static 'admin_panel/js/colToggles.js' %}";
+
+  initSortableTables();
+  initTablePagination(20); // 20 строк на страницу
+</script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const csrftoken = document.querySelector("[name=csrfmiddlewaretoken]").value;
+  const tbody = document.querySelector("#categoriesTable tbody");
+
+  const addPanel = document.getElementById("addPanel");
+  document.getElementById("showAddBtn").onclick = () => { addPanel.style.display = "block"; };
+  document.getElementById("cancelAddBtn").onclick = () => { addPanel.style.display = "none"; };
+
+  document.getElementById("addForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    try {
+      const resp = await fetch("{% url 'admin_panel:category_add_ajax' %}", {
+        method: "POST",
+        headers: {"X-CSRFToken": csrftoken},
+        body: formData
+      });
+      if (!resp.ok) throw new Error("Ошибка при добавлении");
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+
+      tbody.insertAdjacentHTML("beforeend", `
+        <tr data-id="${data.id}">
+          <td>${data.id}</td>
+          <td class="category-name">${data.name}</td>
+          <td class="text-center">
+            <a href="#" class="edit-link" data-id="${data.id}">✏️</a>
+            <a href="#" class="delete-link" data-id="${data.id}">❌</a>
+          </td>
+        </tr>
+      `);
+      addPanel.style.display = "none";
+      e.target.reset();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const editPanel = document.getElementById("editPanel");
+  const editTabs = document.getElementById("editTabs");
+  const editPanes = document.getElementById("editPanes");
+
+  tbody.addEventListener("click", async (e) => {
+    const editEl = e.target.closest(".edit-link");
+    const delEl = e.target.closest(".delete-link");
+
+    if (editEl) {
+      e.preventDefault();
+      editTabs.innerHTML = "";
+      editPanes.innerHTML = "";
+      tbody.querySelectorAll("tr").forEach((tr, idx) => {
+        const id = tr.dataset.id;
+        const name = tr.querySelector(".category-name").textContent;
+        editTabs.insertAdjacentHTML("beforeend", `
+          <li class="nav-item">
+            <a class="nav-link ${idx===0 ? "active":""}" data-toggle="tab" href="#edit-${id}">${name}</a>
+          </li>
+        `);
+        editPanes.insertAdjacentHTML("beforeend", `
+          <div class="tab-pane fade ${idx===0 ? "show active":""}" id="edit-${id}">
+            <input type="text" class="form-control edit-input" data-id="${id}" value="${name}">
+          </div>
+        `);
+      });
+      editPanel.style.display = "block";
+    }
+
+    if (delEl) {
+      e.preventDefault();
+      const id = delEl.dataset.id;
+      try {
+        const resp = await fetch(`/categories/${id}/delete/`, {
+          method: "POST",
+          headers: {"X-CSRFToken": csrftoken}
+        });
+        if (!resp.ok) throw new Error("Ошибка при удалении");
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+        tbody.querySelector(`tr[data-id="${id}"]`).remove();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+  });
+
+  document.getElementById("cancelEditBtn").onclick = () => { editPanel.style.display = "none"; };
+
+  document.getElementById("saveEditBtn").onclick = async () => {
+    try {
+      for (const inp of document.querySelectorAll(".edit-input")) {
+        const id = inp.dataset.id;
+        const name = inp.value;
+        const resp = await fetch(`/categories/${id}/update/`, {
+          method: "POST",
+          headers: {"X-CSRFToken": csrftoken},
+          body: new URLSearchParams({name})
+        });
+        if (!resp.ok) throw new Error("Ошибка при сохранении");
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+        tbody.querySelector(`tr[data-id="${id}"] .category-name`).textContent = data.name;
+      }
+      editPanel.style.display = "none";
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+});
+</script>
+{% endblock %}
+{% extends "adminlte/base.html" %}
+{% load static %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h1 class="mb-0">Каналы</h1>
+      <span class="col-toggle-btn" title="Управление столбцами">
+        <i class="fas fa-cog"></i>
+      </span>
+    </div>
+
+    <div class="d-flex justify-content-end mb-3">
+      <a href="{% url 'admin_panel:channels_add' %}" class="btn btn-add">
+        <i class="fas fa-plus"></i> Добавить
+      </a>
+    </div>
+
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover" 
+         id="groupsTable" data-sortable data-paginate>
+
+        <thead>
+          <tr>
+            <th data-type="number">ID</th>
+            <th data-type="text">Название</th>
+            <!-- <th data-type="number">Telegram ID</th> -->
+            <th data-type="text">Страна</th>
+            <th data-type="text">Категория</th>
+            <th data-type="text">Владелец</th>
+            <th data-type="text">Тип</th> 
+            <!-- <th data-type="text">Описание</th> -->
+            <th data-type="text">Теги</th>
+            <th class="no-sort" data-sortable="false">Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in channels %}
+            <tr>
+              <td>{{ c.id }}</td>
+              <td>
+                <span style="vertical-align:middle;">{{ c.name|default_if_none:"" }}</span>
+              </td>
+              <!-- <td>{{ c.telegram_id }}</td> -->
+              <td>{{ c.country|default_if_none:"" }}</td>
+              <td>{{ c.category|default_if_none:"" }}</td>
+              <td>{{ c.owner }}</td>
+              <td>{{ c.destination_type }}</td>
+              <!-- <td>{{ c.description }}</td> -->
+              <td class="tags-cell">
+                {% if c.tags_list %}
+                  {% for t in c.tags_list %}
+                    <span class="tag-badge">{{ t }}</span>
+                  {% endfor %}
+                {% endif %}
+              </td>
+
+              <td class="text-center">
+                {% if c.link %}<a href="{{ c.link }}" target="_blank" title="Открыть">
+                  <img src="{% static 'admin_panel/img/search.png' %}" alt="Открыть" class="icon-16">
+                </a>{% endif %}
+                <a class="ml-2" href="{% url 'admin_panel:channels_edit' c.id %}" title="Редактировать">
+                  <img src="{% static 'admin_panel/img/edit.png' %}" alt="Редактировать" class="icon-16">
+                </a>
+                <form class="d-inline ml-2" method="post"
+                      action="{% url 'admin_panel:channels_delete' c.id %}"
+                      onsubmit="return confirm('Удалить канал id={{ c.id }}?')">
+                  {% csrf_token %}
+                  <button type="submit" class="delete-btn" title="Удалить">
+                    <img src="{% static 'admin_panel/img/delete.png' %}" alt="Удалить" class="icon-16">
+                  </button>
+
+                </form>
+              </td>
+
+            </tr>
+          {% empty %}
+            <tr><td colspan="8" class="text-center text-muted">Пока нет каналов</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<script type="module">
+  import { initSortableTables } from "{% static 'admin_panel/js/sortableTable.js' %}";
+  import { initTablePagination } from "{% static 'admin_panel/js/pagination.js' %}";
+  import "{% static 'admin_panel/js/colToggles.js' %}";
+  import { initValueFilters } from "{% static 'admin_panel/js/valueFilters.js' %}";
+
+  initSortableTables();
+  const PAGE_SIZE = 20;
+  initTablePagination(PAGE_SIZE);
+
+  initValueFilters({
+    tableSelector: "#groupsTable",
+    columns: ["Категория"],
+    controlsContainerSelector: ".d-flex.justify-content-end.mb-3",
+    beforeSelector: "a.btn.btn-add",
+    resort: () => { try { initSortableTables(); } catch (_) {} },
+    debug: false,
+  });
+</script>
+
+
+{% endblock %}
+{% extends "adminlte/base.html" %}
+{% load static %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h1 class="mb-0">Страны</h1>
+      <span class="col-toggle-btn" title="Управление столбцами">
+        <i class="fas fa-cog"></i>
+      </span>
+    </div>
+
+    <div class="d-flex justify-content-end mb-3">
+      <button id="showAddBtn" class="btn btn-add"><i class="fas fa-plus"></i> Добавить</button>
+    </div>
+
+    <!-- Добавление -->
+    <div id="addPanel" class="card mb-4" style="display:none;">
+      <div class="card-header"><h3 class="card-title">Новая страна</h3></div>
+      <div class="card-body">
+        <form id="addForm">
+          {% csrf_token %}
+          <div class="form-group">
+            <label for="name">Название</label>
+            <input type="text" name="name" id="name" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>Смещение часового пояса (относительно МСК)</label>
+            <div class="d-flex">
+              <select name="tz_sign" class="form-control mr-2">
+                <option value="+">+</option>
+                <option value="-">-</option>
+              </select>
+              <input type="number" name="tz_hours" class="form-control mr-2" min="0" max="14" value="0" required>
+              <input type="number" name="tz_minutes" class="form-control" min="0" max="59" step="15" value="0" required>
+            </div>
+          </div>
+          <div class="mt-3 text-right">
+            <button type="submit" class="btn btn-success">Сохранить</button>
+            <button type="button" id="cancelAddBtn" class="btn btn-secondary">Отмена</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Редактирование -->
+    <div id="editPanel" class="card mb-4" style="display:none;">
+      <div class="card-header"><h3 class="card-title">Редактирование страны</h3></div>
+      <div class="card-body">
+        <div id="editPane"></div>
+        <div class="mt-3 text-right">
+          <button id="saveEditBtn" class="btn btn-success">Сохранить</button>
+          <button id="cancelEditBtn" class="btn btn-secondary">Отмена</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Таблица -->
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover" 
+             id="countriesTable" data-sortable data-paginate>
+        <colgroup>
+          <col style="width:70px">
+          <col>
+          <col style="width:120px">
+          <col style="width:90px">
+        </colgroup>
+        <thead>
+          <tr>
+            <th data-type="number">ID</th>
+            <th data-type="text">Название</th>
+            <th data-type="text">Смещение</th>
+            <th class="no-sort" data-sortable="false">Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in countries %}
+          <tr data-id="{{ c.id }}">
+            <td>{{ c.id }}</td>
+            <td class="country-name">{{ c.name }}</td>
+            <td class="country-delta">{{ c.delta_str }}</td>
+            <td class="text-center">
+              <a href="#" class="edit-link" data-id="{{ c.id }}">
+                <img src="{% static 'admin_panel/img/edit.png' %}" alt="Редактировать" class="icon-16">
+              </a>
+              <a href="#" class="delete-link" data-id="{{ c.id }}">
+                <img src="{% static 'admin_panel/img/delete.png' %}" alt="Удалить" class="icon-16">
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</section>
+
+<script type="module">
+  import { initSortableTables } from "{% static 'admin_panel/js/sortableTable.js' %}";
+  import { initTablePagination } from "{% static 'admin_panel/js/pagination.js' %}";
+  import "{% static 'admin_panel/js/colToggles.js' %}";
+
+  initSortableTables();
+  initTablePagination(20);
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const csrftoken = document.querySelector("[name=csrfmiddlewaretoken]").value;
+  const tbody = document.querySelector("#countriesTable tbody");
+
+  // Добавление
+  const addPanel = document.getElementById("addPanel");
+  document.getElementById("showAddBtn").onclick = () => { addPanel.style.display = "block"; };
+  document.getElementById("cancelAddBtn").onclick = () => { addPanel.style.display = "none"; };
+
+  document.getElementById("addForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const data = new FormData(e.target);
+
+    try {
+      const resp = await fetch("{% url 'admin_panel:country_add_ajax' %}", {
+        method: "POST",
+        headers: {"X-CSRFToken": csrftoken},
+        body: data
+      });
+      if (!resp.ok) throw new Error("Ошибка при добавлении");
+      location.reload();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  // Редактирование
+  const editPanel = document.getElementById("editPanel");
+  const editPane = document.getElementById("editPane");
+
+  tbody.addEventListener("click", async (e) => {
+    const editEl = e.target.closest(".edit-link");
+    const delEl = e.target.closest(".delete-link");
+
+    if (editEl) {
+      e.preventDefault();
+      const tr = editEl.closest("tr");
+      const id = tr.dataset.id;
+      const name = tr.querySelector(".country-name").textContent;
+      const deltaStr = tr.querySelector(".country-delta").textContent.trim();
+
+      const sign = deltaStr.startsWith("-") ? "-" : "+";
+      const [hh, mm] = deltaStr.slice(1).split(":");
+
+      editPane.innerHTML = `
+        <div class="form-group">
+          <label>Название</label>
+          <input type="text" class="form-control edit-input-name" data-id="${id}" value="${name}">
+        </div>
+        <div class="form-group mt-2">
+          <label>Смещение часового пояса</label>
+          <div class="d-flex">
+            <select class="form-control mr-2 edit-input-sign" data-id="${id}">
+              <option value="+" ${sign==="+"?"selected":""}>+</option>
+              <option value="-" ${sign==="-"?"selected":""}>-</option>
+            </select>
+            <input type="number" class="form-control mr-2 edit-input-hours" data-id="${id}" min="0" max="14" value="${parseInt(hh)}">
+            <input type="number" class="form-control edit-input-minutes" data-id="${id}" min="0" max="59" step="15" value="${parseInt(mm)}">
+          </div>
+        </div>
+      `;
+      editPanel.style.display = "block";
+    }
+
+    if (delEl) {
+      e.preventDefault();
+      const id = delEl.dataset.id;
+      if (!confirm("Удалить страну?")) return;
+      try {
+        const resp = await fetch(`/countries/${id}/delete/`, {
+          method: "POST",
+          headers: {"X-CSRFToken": csrftoken}
+        });
+        if (!resp.ok) throw new Error("Ошибка при удалении");
+        location.reload();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+  });
+
+  document.getElementById("cancelEditBtn").onclick = () => { editPanel.style.display = "none"; };
+
+  document.getElementById("saveEditBtn").onclick = async () => {
+    try {
+      const id = editPane.querySelector(".edit-input-name").dataset.id;
+      const name = editPane.querySelector(".edit-input-name").value;
+      const tz_sign = editPane.querySelector(".edit-input-sign").value;
+      const tz_hours = editPane.querySelector(".edit-input-hours").value;
+      const tz_minutes = editPane.querySelector(".edit-input-minutes").value;
+
+      const resp = await fetch(`/countries/${id}/update/`, {
+        method: "POST",
+        headers: {"X-CSRFToken": csrftoken},
+        body: new URLSearchParams({name, tz_sign, tz_hours, tz_minutes})
+      });
+      if (!resp.ok) throw new Error("Ошибка при сохранении");
+      location.reload();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+});
+</script>
+{% endblock %}
+{% extends "adminlte/base.html" %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <h1 class="mb-4">Панель управления</h1>
+    <div class="row">
+
+      {% if role == "moderator" %}
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-info">
+            <div class="inner"><h3>Плагины</h3><p>Управление скриптами</p></div>
+            <div class="icon"><i class="fas fa-plug"></i></div>
+            <a href="{% url 'admin_panel:plugins_page' %}" class="small-box-footer">Перейти <i class="fas fa-arrow-circle-right"></i></a>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-warning">
+            <div class="inner"><h3>Справочники</h3><p>Базовые данные</p></div>
+            <div class="icon"><i class="fas fa-book"></i></div>
+            <a href="{% url 'admin_panel:directories_page' %}" class="small-box-footer">Перейти <i class="fas fa-arrow-circle-right"></i></a>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-success">
+            <div class="inner"><h3>Статистика</h3><p>Аналитика проектов</p></div>
+            <div class="icon"><i class="fas fa-chart-bar"></i></div>
+            <a href="#" class="small-box-footer">Перейти <i class="fas fa-arrow-circle-right"></i></a>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-danger">
+            <div class="inner"><h3>Логи</h3><p>События системы</p></div>
+            <div class="icon"><i class="fas fa-clipboard-list"></i></div>
+            <a href="#" class="small-box-footer">Перейти <i class="fas fa-arrow-circle-right"></i></a>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-primary">
+            <div class="inner"><h3>Вебсайт</h3><p>Настройки сайта</p></div>
+            <div class="icon"><i class="fas fa-globe"></i></div>
+            <a href="#" class="small-box-footer">Перейти <i class="fas fa-arrow-circle-right"></i></a>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-secondary">
+            <div class="inner"><h3>Android</h3><p>Мобильное приложение</p></div>
+            <div class="icon"><i class="fab fa-android"></i></div>
+            <a href="#" class="small-box-footer">Перейти <i class="fas fa-arrow-circle-right"></i></a>
+          </div>
+        </div>
+
+      {% elif role == "advertiser" %}
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-info">
+            <div class="inner"><h3>Реклама</h3><p>Управление кампаниями</p></div>
+            <div class="icon"><i class="fas fa-bullhorn"></i></div>
+            <a href="#" class="small-box-footer">Перейти <i class="fas fa-arrow-circle-right"></i></a>
+          </div>
+        </div>
+      {% endif %}
+
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+{% extends "adminlte/base.html" %}
+{% load static %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <h1 class="mb-4">Справочники</h1>
+
+    <div class="row">
+
+      <!-- Группы -->
+      <div class="col-md-4 col-sm-6">
+        <div class="small-box bg-info">
+          <div class="inner">
+            <h3>Группы ТГ</h3>
+            <p>Управление списком Telegram-групп</p>
+          </div>
+          <div class="icon"><i class="fas fa-users"></i></div>
+          <a href="{% url 'admin_panel:entities_page' %}" class="small-box-footer">
+            Перейти <i class="fas fa-arrow-circle-right"></i>
+          </a>
+        </div>
+      </div>
+
+      <!-- Каналы -->
+      <div class="col-md-4 col-sm-6">
+        <div class="small-box bg-success">
+          <div class="inner">
+            <h3>Каналы ТГ</h3>
+            <p>Все каналы и связанные данные</p>
+          </div>
+          <div class="icon"><i class="fas fa-bullhorn"></i></div>
+          <a href="{% url 'admin_panel:entities_page' %}" class="small-box-footer">
+            Перейти <i class="fas fa-arrow-circle-right"></i>
+          </a>
+        </div>
+      </div>
+
+      <!-- Боты -->
+      <div class="col-md-4 col-sm-6">
+        <div class="small-box bg-warning">
+          <div class="inner">
+            <h3>Боты</h3>
+            <p>Список доступных Telegram-ботов</p>
+          </div>
+          <div class="icon"><i class="fas fa-robot"></i></div>
+          <a href="{% url 'admin_panel:bots_page' %}" class="small-box-footer">
+            Перейти <i class="fas fa-arrow-circle-right"></i>
+          </a>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="row">
+      <!-- Аккаунты -->
+      <div class="col-md-6">
+        <div class="card card-outline card-primary">
+          <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-user-circle mr-2"></i>Аккаунты</h3>
+          </div>
+          <div class="card-body">
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item"><a href="#">Чужие</a></li>
+              <li class="list-group-item"><a href="#">Наши</a></li>
+              <li class="list-group-item"><a href="#">Наши Премиум</a></li>
+              <li class="list-group-item"><a href="#">Нормализация</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- API -->
+      <div class="col-md-6">
+        <div class="card card-outline card-secondary">
+          <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-plug mr-2"></i>API</h3>
+          </div>
+          <div class="card-body">
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item"><a href="#">TG-Stat</a></li>
+              <li class="list-group-item"><a href="#">РегРу</a></li>
+              <li class="list-group-item"><a href="#">twiboost.com</a></li>
+              <li class="list-group-item"><a href="#">XE.com</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <!-- Страны -->
+      <div class="col-md-4 col-sm-6">
+        <div class="card card-outline card-info">
+          <div class="card-header"><h3 class="card-title">Страны</h3></div>
+          <div class="card-body">
+            <p>Справочник стран для сегментации каналов и групп</p>
+            <a href="{% url 'admin_panel:countries_page' %}" class="btn btn-info btn-block">Перейти</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Категории -->
+      <div class="col-md-4 col-sm-6">
+        <div class="card card-outline card-info">
+          <div class="card-header"><h3 class="card-title">Категории</h3></div>
+          <div class="card-body">
+            <p>Категоризация каналов и групп по темам</p>
+            <a href="{% url 'admin_panel:categories_page' %}" class="btn btn-info btn-block">Перейти</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Прочее -->
+      <div class="col-md-4 col-sm-6">
+        <div class="card card-outline card-info">
+          <div class="card-header"><h3 class="card-title">Прочее</h3></div>
+          <div class="card-body">
+            <ul class="list-unstyled">
+              <li><a href="#">Доноры ТГ</a></li>
+              <li><a href="#">Источники ТГ</a></li>
+              <li><a href="#">Базовые настройки</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+{% endblock %}
+
+{% extends "adminlte/base.html" %}
+{% load static %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h1 class="mb-0">Telegram-сообщества</h1>
+      <span class="col-toggle-btn" title="Управление столбцами">
+        <i class="fas fa-cog"></i>
+      </span>
+    </div>
+
+    <div class="d-flex justify-content-end mb-3">
+      <a href="{% url 'admin_panel:entities_add' %}" class="btn btn-add">
+        <i class="fas fa-plus"></i> Добавить
+      </a>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover"
+             id="entitiesTable" data-sortable data-paginate>
+        <thead>
+          <tr>
+            <th data-type="number">ID</th>
+            <th data-type="text">Название</th>
+            <th data-type="number">Порядок</th>
+            <th data-type="text">Страна</th>
+            <th data-type="text">Категория</th>
+            <th data-type="text">Владелец</th>
+            <th data-type="text">Тип</th>
+            <th data-type="text">Теги</th>
+            <th data-type="number">Кол-во задач</th>
+            <th class="no-sort" data-sortable="false">Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in entities %}
+          <tr>
+            <td>{{ e.id }}</td>
+            <td>{{ e.name|default_if_none:"" }}</td>
+            <td>{{ e.order|default_if_none:"" }}</td>
+            <td>{{ e.country|default_if_none:"" }}</td>
+            <td>{{ e.category|default_if_none:"" }}</td>
+            <td>{{ e.owner|default_if_none:"" }}</td>
+            <td>
+              {% if e.destination_type %}
+                <span>{{ e.destination_type }}</span>
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td class="tags-cell">
+              {% for t in e.tags_list %}
+                <span class="badge-tag">{{ t }}</span>
+              {% endfor %}
+            </td>
+            <td class="text-center">{{ e.cached_task_count }}</td>
+            <td class="text-center">
+              {% if e.link %}
+                <a href="{{ e.link }}" target="_blank" title="Открыть">
+                  <img src="{% static 'admin_panel/img/search.png' %}" class="icon-16">
+                </a>
+              {% endif %}
+              <a href="{% url 'admin_panel:entities_edit' e.id %}" title="Редактировать">
+                <img src="{% static 'admin_panel/img/edit.png' %}" class="icon-16">
+              </a>
+              <form method="post"
+                    action="{% url 'admin_panel:entities_delete' e.id %}"
+                    class="d-inline"
+                    onsubmit="return confirm('Удалить {{ e.entity_type }} id={{ e.id }}?')">
+                {% csrf_token %}
+                <button type="submit" class="delete-btn" title="Удалить">
+                  <img src="{% static 'admin_panel/img/delete.png' %}" class="icon-16">
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="10" class="text-center text-muted">Нет сообществ</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<script type="module">
+import {initSortableTables} from "{% static 'admin_panel/js/sortableTable.js' %}";
+import {initTablePagination} from "{% static 'admin_panel/js/pagination.js' %}";
+import "{% static 'admin_panel/js/colToggles.js' %}";
+initSortableTables();
+initTablePagination(20);
+</script>
+{% endblock %}
+{% extends "adminlte/base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-center align-items-center" style="min-height: 100vh;">
+  <div class="login-box" style="width: clamp(380px, 92vw, 500px);">
+    <div class="login-logo">
+      <b>Панель</b> Вход
+    </div>
+
+    <div class="card shadow">
+      <div class="card-body login-card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+
+          {% for field in form %}
+            <div class="form-group">
+              <label for="{{ field.id_for_label }}" class="d-block mb-1">{{ field.label }}</label>
+
+              {% if field.name == "password" %}
+                <div class="input-group">
+                  {{ field }}
+                  <div class="input-group-append">
+                    <span class="input-group-text" id="togglePassword" style="cursor:pointer;">
+                      <i class="fas fa-eye"></i>
+                    </span>
+                  </div>
+                </div>
+              {% else %}
+                {{ field }}
+              {% endif %}
+
+              {% if field.errors %}
+                <div class="text-danger small mt-1">{{ field.errors }}</div>
+              {% endif %}
+            </div>
+          {% endfor %}
+
+          <button type="submit" class="btn btn-primary btn-block">Войти</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Лейблы строго над полями */
+  .login-card-body .form-group label {
+    display: block;
+    margin-bottom: .35rem;
+    font-weight: 500;
+  }
+
+  /* Вертикальная форма, без требований к классам виджетов */
+  .login-card-body .form-group input,
+  .login-card-body .form-group select,
+  .login-card-body .form-group textarea {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    height: calc(2.5rem + 2px);
+    font-size: 1rem;
+  }
+
+  /* Контейнер пошире */
+  .login-box { width: clamp(380px, 92vw, 500px); }
+
+  /* Чтобы и без Bootstrap input-group работал корректно */
+  .login-card-body .input-group {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  /* Инпут внутри input-group не растягиваем на 100%, а даём ему гибкость */
+  .login-card-body .input-group > input {
+    flex: 1 1 auto;
+    width: auto;      /* перекрываем width:100% сверху */
+    min-width: 0;     /* не распирает контейнер */
+    height: calc(2.5rem + 2px);
+    font-size: 1rem;
+  }
+
+  .login-card-body .input-group-append {
+    flex: 0 0 auto;
+    display: flex;
+  }
+  
+  .login-card-body .input-group > input.form-control {
+  flex: 1 1 auto;
+  width: 0;        /* 🔹 ключ — заставляем работать через flex */
+  min-width: 0;    /* 🔹 не даём распирать контейнер */
+  max-width: 100%; /* 🔹 не выходит за пределы */
+}
+
+
+  .login-card-body .input-group-append .input-group-text {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: .5rem .6rem;
+    line-height: 1;
+    height: calc(2.5rem + 2px);
+    border: 1px solid rgba(0,0,0,.1);
+    border-left: none;      /* сливается с инпутом */
+    border-radius: .25rem;  /* если у вас bootstrap — подхватится его стиль */
+  }
+
+  /* На узких экранах — адаптивная ширина */
+  @media (max-width: 420px) {
+    .login-box { width: 92vw !important; }
+  }
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const toggle = document.getElementById("togglePassword");
+  if (!toggle) return;
+
+  const group = toggle.closest(".input-group");
+  const input = group ? group.querySelector("input[name='password']") : null;
+  const icon  = toggle.querySelector("i");
+
+  if (!input || !icon) return;
+
+  toggle.addEventListener("click", () => {
+    const isHidden = input.type === "password";
+    input.type = isHidden ? "text" : "password";
+    icon.classList.toggle("fa-eye", !isHidden);
+    icon.classList.toggle("fa-eye-slash", isHidden);
+  });
+});
+</script>
+{% endblock %}
+{% extends "adminlte/base.html" %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <h1 class="mb-4">Редактирование задачи</h1>
+
+    <form id="editTaskForm">
+      <div class="form-group row">
+        <label class="col-sm-2 col-form-label">Статус</label>
+        <div class="col-sm-10">
+          <select class="form-control" name="status">
+            <option value="success">Активен</option>
+            <option value="error">Ошибка</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group row">
+        <label class="col-sm-2 col-form-label">ID</label>
+        <div class="col-sm-10">
+          <input type="number" class="form-control" name="id" value="1" readonly>
+        </div>
+      </div>
+
+      <div class="form-group row">
+        <label class="col-sm-2 col-form-label">Цель - где публикуем</label>
+        <div class="col-sm-10">
+          <select class="form-control" name="target">
+            <option value="Цель1">Цель1</option>
+            <option value="Цель2">Цель2</option>
+            <option value="Цель3">Цель3</option>
+            <option value="Цель4">Цель4</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group row">
+        <label class="col-sm-2 col-form-label">День</label>
+        <div class="col-sm-10">
+          <select class="form-control" name="days" multiple>
+            <option value="Пн">Пн</option>
+            <option value="Вт">Вт</option>
+            <option value="Ср">Ср</option>
+            <option value="Чт">Чт</option>
+            <option value="Пт">Пт</option>
+            <option value="Сб">Сб</option>
+            <option value="Вс">Вс</option>
+          </select>
+          <small class="form-text text-muted">Удерживайте Ctrl (или Cmd на Mac), чтобы выбрать несколько дней.</small>
+        </div>
+      </div>
+
+      <div class="form-group row">
+        <label class="col-sm-2 col-form-label">Время</label>
+        <div class="col-sm-10">
+          <input type="time" class="form-control" name="time" value="12:00">
+        </div>
+      </div>
+
+      <div class="form-group row">
+        <label class="col-sm-2 col-form-label">Источник - откуда берём</label>
+        <div class="col-sm-10">
+          <select class="form-control" name="source">
+            <option value="Источник1">Источник1</option>
+            <option value="Источник2">Источник2</option>
+            <option value="Источник3">Источник3</option>
+            <option value="Источник4">Источник4</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group row">
+        <label class="col-sm-2 col-form-label">Выбор</label>
+        <div class="col-sm-10">
+          <select class="form-control" name="choice">
+            <option>Случайный</option>
+            <option>По порядку</option>
+            <option>По имени</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group row">
+        <label class="col-sm-2 col-form-label">После публикации</label>
+        <div class="col-sm-10">
+          <select class="form-control" name="after">
+            <option>По кругу</option>
+            <option>Удаляем</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group row">
+        <div class="col-sm-10 offset-sm-2">
+          <button type="submit" class="btn btn-primary">Сохранить</button>
+          <a href="{% url 'admin_panel:channel_post_tasks' %}" class="btn btn-secondary">Отмена</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</section>
+
+<script>
+  document.getElementById("editTaskForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    alert("Сохранение задачи (заглушка)");
+  });
+</script>
+{% endblock %}
+{% extends "adminlte/base.html" %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <h1 class="mb-4">Задачи публикации</h1>
+
+    <table class="table table-bordered table-hover" id="tasksTable">
+      <thead>
+        <tr>
+          <th onclick="sortTable(0)">Статус <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(1)">ID <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(2)">Цель - где публикуем <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(3)">День <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(4)">Время <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(5)">Источник - откуда берём <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(6)">Выбор <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(7)">После публикации <span class="sort-arrow"></span></th>
+          <th>Действие</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for task in tasks %}
+        <tr>
+          <td>
+            {% if task.status == "success" %}
+              <span class="badge badge-success">Активен</span>
+            {% else %}
+              <span class="badge badge-danger">Ошибка</span>
+            {% endif %}
+          </td>
+          <td>{{ task.id }}</td>
+          <td>{{ task.target }}</td>
+          <td>{{ task.days }}</td>
+          <td>{{ task.time }}</td>
+          <td>{{ task.source }}</td>
+          <td>{{ task.choice }}</td>
+          <td>{{ task.after }}</td>
+          <td>
+            <a href="{% url 'admin_panel:channel_post_tasks_edit' task.id %}" class="btn btn-secondary btn-sm">
+              <i class="fas fa-gavel"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<style>
+  th { cursor: pointer; }
+  .sort-arrow::after { content: "⇅"; font-size: 12px; margin-left: 4px; color: #aaa; }
+  .asc .sort-arrow::after { content: "↑"; color: #000; }
+  .desc .sort-arrow::after { content: "↓"; color: #000; }
+</style>
+
+<script>
+  let currentSortCol = -1;
+  let currentSortDir = "asc";
+
+  function sortTable(colIndex) {
+    const table = document.getElementById("tasksTable");
+    const tbody = table.tBodies[0];
+    const rows = Array.from(tbody.querySelectorAll("tr"));
+
+    if (currentSortCol === colIndex) {
+      currentSortDir = currentSortDir === "asc" ? "desc" : "asc";
+    } else {
+      currentSortCol = colIndex;
+      currentSortDir = "asc";
+    }
+
+    rows.sort((a, b) => {
+      let A = a.cells[colIndex].innerText.trim();
+      let B = b.cells[colIndex].innerText.trim();
+
+      // для чисел
+      if (!isNaN(A) && !isNaN(B)) {
+        A = Number(A);
+        B = Number(B);
+      }
+
+      if (A < B) return currentSortDir === "asc" ? -1 : 1;
+      if (A > B) return currentSortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    rows.forEach(r => tbody.appendChild(r));
+
+    document.querySelectorAll("th").forEach(th => th.classList.remove("asc", "desc"));
+    table.rows[0].cells[colIndex].classList.add(currentSortDir);
+  }
+</script>
+{% endblock %}
+{% extends "adminlte/base.html" %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h1 class="mb-0">Создать нового бота</h1>
+      <a href="{% url 'admin_panel:bots_page' %}" class="btn btn-secondary">Назад</a>
+    </div>
+
+    <form id="createBotForm" method="post" onsubmit="return false;">
+      {% csrf_token %}
+
+      <!-- name -->
+      <div class="form-group">
+        <label for="name">Название</label>
+        <input type="text" name="name" id="name" class="form-control" placeholder="Например: Основной бот">
+      </div>
+
+      <!-- api_id -->
+      <div class="form-group">
+        <label for="api_id">API ID</label>
+        <input type="number" step="1" inputmode="numeric" name="api_id" id="api_id" class="form-control" required>
+      </div>
+
+      <!-- api_hash -->
+      <div class="form-group">
+        <label for="api_hash">API HASH</label>
+        <input type="text" name="api_hash" id="api_hash" class="form-control" required autocomplete="off">
+      </div>
+
+      <!-- phone -->
+      <div class="form-group">
+        <label for="phone">Телефон</label>
+        <input type="tel" name="phone" id="phone" class="form-control" placeholder="+79998887766 или в любом формате" required>
+      </div>
+
+      <!-- token (server-side) -->
+      <input type="hidden" id="auth_token" name="token">
+
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-primary" id="getCodeBtn">Получить код</button>
+      </div>
+
+      <div id="codeSection" class="mt-4" style="display:none;">
+        <!-- code -->
+        <div class="form-group">
+          <label for="code">Код из Telegram</label>
+          <input type="text" name="code" id="code" class="form-control" placeholder="Введи код" inputmode="numeric" autocomplete="one-time-code">
+          <small class="form-text text-muted">Если код не пришёл, запроси его ещё раз через 30–60 сек.</small>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-success" id="confirmCodeBtn">Подтвердить</button>
+          <button type="button" class="btn btn-outline-primary" id="resendBtn">Отправить код повторно</button>
+        </div>
+      </div>
+
+      <div id="msg" class="mt-3"></div>
+    </form>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+(function() {
+  const form        = document.getElementById('createBotForm');
+  const getCodeBtn  = document.getElementById('getCodeBtn');
+  const confirmBtn  = document.getElementById('confirmCodeBtn');
+  const resendBtn   = document.getElementById('resendBtn');
+  const codeSection = document.getElementById('codeSection');
+  const tokenInput  = document.getElementById('auth_token');
+  const codeInput   = document.getElementById('code');
+  const csrf        = document.querySelector('input[name=csrfmiddlewaretoken]').value;
+
+  function show(msg, type='info') {
+    const host = document.getElementById('msg') || (() => {
+      const d = document.createElement('div'); d.id='msg'; d.className='mt-3'; form.appendChild(d); return d;
+    })();
+    const cls = {info:'alert-info', success:'alert-success', warn:'alert-warning', error:'alert-danger'}[type]||'alert-info';
+    host.innerHTML = `<div class="alert ${cls} mb-0" role="alert">${msg}</div>`;
+  }
+
+  // только цифры в поле code
+  codeInput.addEventListener('input', () => codeInput.value = codeInput.value.replace(/\D+/g, ''));
+
+  async function requestCode() {
+    // берем значения строго по их key-именам
+    const name     = document.getElementById('name').value.trim();       // name
+    const api_id   = document.getElementById('api_id').value.trim();     // api_id
+    const api_hash = document.getElementById('api_hash').value.trim();   // api_hash
+    const phone    = document.getElementById('phone').value.trim();      // phone
+
+    if (!api_id || !api_hash || !phone) {
+      show('Заполните API ID, API HASH и Телефон', 'warn');
+      return;
+    }
+
+    // отправляем точь-в-точь те ключи, что нужны бэкенду
+    const fd = new FormData();
+    if (name)       fd.append('name', name);           // name
+    fd.append('api_id',   api_id);                     // api_id
+    fd.append('api_hash', api_hash);                   // api_hash
+    fd.append('phone',    phone);                      // phone
+
+    getCodeBtn.disabled = true;
+    if (resendBtn) resendBtn.disabled = true;
+    show('Отправляем код...', 'info');
+
+    try {
+      const r = await fetch("{% url 'telegram:start_auth' %}", {
+        method: "POST",
+        headers: { "X-CSRFToken": csrf },
+        body: fd
+      });
+      const data = await r.json();
+
+      if (data.status === 'code_sent' && data.token) {
+        tokenInput.value = data.token;        // token
+        codeInput.value  = "";                // code
+        codeSection.style.display = '';
+        show('Код отправлен. Введите его ниже.', 'success');
+      } else if (data.error === 'FLOOD_WAIT') {
+        show(`Слишком часто. Подождите ${data.retry_after || 60} сек.`, 'warn');
+      } else {
+        show('Ошибка: ' + (data.error || JSON.stringify(data)), 'error');
+      }
+    } catch (e) {
+      tokenInput.value = "";
+      show('Сеть/сервер: ' + e, 'error');
+    } finally {
+      getCodeBtn.disabled = false;
+      if (resendBtn) resendBtn.disabled = false;
+    }
+  }
+
+  // Шаг 1 — получить код
+  getCodeBtn.addEventListener('click', requestCode);
+
+  // Шаг 2 — подтвердить код
+  confirmBtn.addEventListener('click', async () => {
+    const token = tokenInput.value.trim();   // token
+    const code  = codeInput.value.trim();    // code
+    if (!token) return show('Нет token: нажмите «Получить код».', 'warn');
+    if (!code)  return show('Введите код из Telegram.', 'warn');
+
+    const fd = new FormData();
+    fd.append('token', token);  // token
+    fd.append('code',  code);   // code
+
+    confirmBtn.disabled = true;
+
+    try {
+      const r = await fetch("{% url 'telegram:confirm_code' %}", {
+        method: "POST",
+        headers: { "X-CSRFToken": csrf },
+        body: fd
+      });
+      const data = await r.json();
+
+      if (data.status === 'authorized') {
+        show('Готово! Бот сохранён и авторизован.', 'success');
+        setTimeout(() => location.href = "{% url 'admin_panel:bots_page' %}", 700);
+      } else if (data.error === 'PHONE_CODE_INVALID') {
+        show('Неверный код. Попробуйте ещё раз.', 'error');
+      } else if (data.error === 'PHONE_CODE_EXPIRED') {
+        show('Код истёк. Нажмите «Отправить повторно».', 'warn');
+      } else if (data.error === 'SESSION_PASSWORD_NEEDED') {
+        show('На аккаунте включена 2FA. Нужен пароль (добавим шаг ввода пароля).', 'warn');
+      } else if (data.error === 'NO_PENDING_CODE') {
+        show('Нет активного запроса кода. Нажмите «Получить код».', 'warn');
+      } else if (data.error === 'FLOOD_WAIT') {
+        show(`Слишком часто. Подождите ${data.retry_after || 60} сек.`, 'warn');
+      } else {
+        show('Ошибка: ' + (data.error || JSON.stringify(data)), 'error');
+      }
+    } catch (e) {
+      show('Сеть/сервер: ' + e, 'error');
+    } finally {
+      confirmBtn.disabled = false;
+    }
+  });
+
+  // Повторная отправка кода — только token
+  document.getElementById("resendBtn")?.addEventListener("click", async () => {
+    const token = tokenInput.value.trim(); // token
+    if (!token) return show('Нет token: сначала нажмите «Получить код».', 'warn');
+
+    try {
+      const r = await fetch("{% url 'telegram:resend_code' %}", {
+        method: "POST",
+        headers: { "X-CSRFToken": csrf, "Content-Type": "application/json" },
+        body: JSON.stringify({ token }) // token
+      });
+      const data = await r.json();
+      if (data.status === "resent") {
+        const hint = data.delivery === 'SentCodeTypeApp'
+          ? 'Код снова отправлен в приложение Telegram (чат «Telegram»).'
+          : 'Код снова отправлен (возможно SMS/звонок).';
+        show(hint, 'success');
+      } else if (data.error === 'FLOOD_WAIT') {
+        show(`Слишком часто. Подождите ${data.retry_after || 60} сек.`, 'warn');
+      } else {
+        show('Ошибка: ' + (data.error || JSON.stringify(data)), 'error');
+      }
+    } catch (e) {
+      show('Сеть/сервер: ' + e, 'error');
+    }
+  });
+})();
+</script>
+{% endblock %}
+{% extends "adminlte/base.html" %}
+{% load static %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <h1 class="mb-4">Добавить канал</h1>
+
+    <form method="post" id="addChannelForm" enctype="multipart/form-data"
+          action="{% url 'admin_panel:channels_add' %}">
+      {% csrf_token %}
+
+      <div class="mb-3">
+        <button type="button" id="autoFillBtn" class="btn btn-secondary">Заполнить автоматически</button>
+      </div>
+
+      <div class="row">
+        <!-- Левая колонка -->
+        <div class="col-md-6">
+          <div class="form-group" id="linkWrapper">
+            <label for="link">Ссылка на канал</label>
+            <input type="text" name="link" id="link" class="form-control"
+                   placeholder="https://t.me/example или @example" required>
+          </div>
+
+          <div class="form-group">
+            <label for="telegram_id">Telegram ID</label>
+            <input type="number" step="1" name="telegram_id" id="telegram_id" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label for="name">Название</label>
+            <input type="text" name="name" id="name" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label for="description">Описание</label>
+            <textarea name="description" id="description" class="form-control" rows="3"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="country">Страна</label>
+            <select name="country" id="country" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for c in countries %}
+                <option value="{{ c.name }}">{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Правая колонка -->
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="category">Категория</label>
+            <select name="category" id="category" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for c in categories %}
+                <option value="{{ c.name }}">{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="owner">Владелец</label>
+            <select name="owner" id="owner" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for o in owners %}
+                <option value="{{ o }}">{{ o }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="destination_type">Тип</label>
+            <select name="destination_type" id="destination_type" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for d in destination_types %}
+                <option value="{{ d }}">{{ d }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="text_suffix">Текст-суффикс (добавляется в конец каждого поста)</label>
+            <textarea name="text_suffix" id="text_suffix" class="form-control" rows="4"
+                      placeholder="Например:&#10;— Подпишись: @mychannel&#10;— Реклама: @ads_contact"></textarea>
+            <small class="form-text text-muted">Можно оставить пустым. Будет добавлен как отдельный блок после исходного текста/подписи.</small>
+          </div>
+
+          <div class="form-group" id="photoWrapper">
+            <label for="photo">Картинка</label>
+            <div class="image-upload" style="max-width:250px;">
+              <input type="file" name="photo" id="photo" class="d-none" accept="image/*">
+              <div id="preview" class="preview-box d-flex align-items-center justify-content-center">
+                <span class="text-muted">Нет изображения</span>
+              </div>
+              <div class="mt-2 d-flex" style="gap:8px;">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="pickPhotoBtn">Загрузить</button>
+                <button type="button" class="btn btn-sm btn-outline-danger" id="clearPhotoBtn" disabled>Очистить</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-success">Сохранить</button>
+      <a href="{% url 'admin_panel:channels_page' %}" class="btn btn-outline-secondary">Отмена</a>
+    </form>
+
+  </div>
+</section>
+
+<script>
+(function () {
+  const photoInput = document.getElementById('photo');
+  const previewBox = document.getElementById('preview');
+  const pickBtn    = document.getElementById('pickPhotoBtn');
+  const clearBtn   = document.getElementById('clearPhotoBtn');
+  const PARSER_URL = (window.API && window.API.PARSER) || "/api/parse_channel";
+
+  // превью
+  function showPreview(src){
+    previewBox.innerHTML = `<img src="${src}" alt="preview"
+        style="width:100%;height:100%;object-fit:cover;">`;
+    clearBtn.disabled = false;
+  }
+  function clearPreview(){
+    if (photoInput) photoInput.value = '';
+    previewBox.innerHTML = `<span class="text-muted">Нет изображения</span>`;
+    clearBtn.disabled = true;
+  }
+
+  if (photoInput) {
+    photoInput.addEventListener('change', ev => {
+      const f = ev.target.files && ev.target.files[0];
+      if (!f) return clearPreview();
+      const r = new FileReader();
+      r.onload = e2 => showPreview(e2.target.result);
+      r.readAsDataURL(f);
+    });
+  }
+  if (pickBtn)  pickBtn.addEventListener('click', () => photoInput.click());
+  if (clearBtn) clearBtn.addEventListener('click', clearPreview);
+  previewBox.addEventListener('click', () => photoInput.click());
+
+  // автозаполнение
+  document.getElementById("autoFillBtn").addEventListener("click", async () => {
+    const linkEl = document.getElementById("link");
+    const idEl   = document.getElementById("telegram_id");
+    const nameEl = document.getElementById("name");
+    const descEl = document.getElementById("description");
+
+    const link = linkEl.value.trim();
+    if (!link) return alert("Введите ссылку для автозаполнения");
+
+    try {
+      const resp = await fetch(PARSER_URL, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ link })
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || data.error || "Ошибка API");
+
+      idEl.value   = data.telegram_id ?? data.tg_id ?? "";
+      nameEl.value = data.name || "";
+      if (data.description) descEl.value = data.description;
+
+      // блокировка редактирования
+      linkEl.readOnly = true;
+      idEl.readOnly   = true;
+      descEl.readOnly = true;
+      nameEl.readOnly = true;
+
+      function setSelectByText(selId, text) {
+        const sel = document.getElementById(selId);
+        const val = (text||"").trim().toLowerCase();
+        if (!sel || !val) return;
+        for (const opt of sel.options) {
+          if (opt.value.trim().toLowerCase() === val || opt.textContent.trim().toLowerCase() === val) {
+            opt.selected = true; return;
+          }
+        }
+        const opt = document.createElement('option');
+        opt.value = text; opt.textContent = text; opt.selected = true;
+        sel.insertBefore(opt, sel.firstChild);
+      }
+      if (data.country)  setSelectByText("country",  data.country);
+      if (data.category) setSelectByText("category", data.category);
+
+      // картинка
+      if (data.photo) {
+        const photoUrl = data.photo;
+        showPreview(photoUrl);
+
+        // подсовываем в input как файл
+        try {
+          const imgResp = await fetch(photoUrl);
+          if (imgResp.ok) {
+            const rawCT = (imgResp.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+            if (rawCT.startsWith("image/")) {
+              const buf = await imgResp.arrayBuffer();
+              const ext = (rawCT.split("/")[1] || "jpg").replace(/[^a-z0-9]/gi, "");
+              const file = new File([buf], `autofill.${ext}`, { type: rawCT });
+              const dt = new DataTransfer();
+              dt.items.add(file);
+              photoInput.files = dt.files;
+
+              // блокировка ручной загрузки
+              photoInput.style.display = "none";  // скрыть, но не выключать
+              pickBtn.disabled = true;
+              clearBtn.disabled = true;
+              previewBox.onclick = null;
+
+            }
+          }
+        } catch (err) {
+          console.warn("Ошибка загрузки фото:", err);
+        }
+      } else {
+        clearPreview();
+      }
+    } catch (e) {
+      alert("Автозаполнение не удалось: " + e.message);
+    }
+  });
+})();
+</script>
+{% endblock %}
+{% extends "adminlte/base.html" %}
+{% load static %}
+
+{% block title %}Редактировать канал #{{ chan_id }}{% endblock %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <h1 class="mb-4">Редактировать канал #{{ chan_id }}</h1>
+
+    <form method="post" id="editChannelForm" enctype="multipart/form-data">
+      {% csrf_token %}
+
+      <div class="row">
+        <!-- Левая колонка -->
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="telegram_id">Telegram ID</label>
+            <input type="text" id="telegram_id" class="form-control"
+                   value="{{ channel.telegram_id }}" readonly>
+          </div>
+
+          <div class="form-group">
+            <label for="name">Название</label>
+            <input type="text" name="name" id="name" class="form-control"
+                   value="{{ channel.name|default_if_none:'' }}" required>
+          </div>
+
+          <div class="form-group">
+            <label for="description">Описание</label>
+            <textarea name="description" id="description" class="form-control" rows="4">
+              {{ channel.description }}
+            </textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="country">Страна</label>
+            <select name="country" id="country" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for c in countries %}
+                <option value="{{ c.name }}" {% if channel.country and channel.country.name == c.name %}selected{% endif %}>{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="category">Категория</label>
+            <select name="category" id="category" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for c in categories %}
+                <option value="{{ c.name }}" {% if channel.category and channel.category.name == c.name %}selected{% endif %}>{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Правая колонка -->
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="owner">Владелец</label>
+            <select name="owner" id="owner" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for o in owners %}
+                <option value="{{ o }}" {% if channel.owner == o %}selected{% endif %}>{{ o }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="destination_type">Тип</label>
+            <select name="destination_type" id="destination_type" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for d in destination_types %}
+                <option value="{{ d }}" {% if channel.destination_type == d %}selected{% endif %}>{{ d }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="tags">Теги (через запятую)</label>
+            <input type="text" name="tags" id="tags" class="form-control"
+                   value="{{ channel.tags|default_if_none:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label for="link">Ссылка</label>
+            <input type="text" name="link" id="link" class="form-control"
+                   value="{{ channel.link|default_if_none:'' }}">
+          </div>
+
+          <!-- Текст-суффикс + переключатель -->
+          <div class="form-group mb-2">
+            <label for="text_suffix">Текст-суффикс (добавляется в конец каждого поста)</label>
+
+            <div class="d-flex align-items-center" style="gap: 6px;">
+              <textarea name="text_suffix" id="text_suffix" class="form-control flex-grow-1" rows="3"
+                        placeholder="Например:&#10;— Подпишись: @mychannel&#10;— Реклама: @ads_contact">{{ channel.text_suffix }}</textarea>
+
+              <!-- кнопки выбора -->
+              <div class="btn-group btn-group-sm" role="group" id="suffix-toggle" style="flex-shrink:0;">
+                <button type="button" class="btn btn-outline-secondary suffix-btn {% if channel.is_add_suffix %}active{% endif %}" 
+                        data-value="1" title="Добавлять суффикс">
+                  <img src="{% static 'admin_panel/img/enable.svg' %}" alt="Вкл" class="icon-16">
+                </button>
+                <button type="button" class="btn btn-outline-secondary suffix-btn {% if not channel.is_add_suffix %}active{% endif %}" 
+                        data-value="0" title="Не добавлять суффикс">
+                  <img src="{% static 'admin_panel/img/disable.svg' %}" alt="Выкл" class="icon-16">
+                </button>
+              </div>
+            </div>
+
+            <input type="hidden" name="is_add_suffix" id="is_add_suffix" value="{% if channel.is_add_suffix %}1{% else %}0{% endif %}">
+          </div>
+
+          <div class="form-group">
+            <label for="photo">Картинка</label>
+            <div class="image-upload" style="max-width:250px;">
+              <input type="file" name="photo" id="photo" class="d-none" accept="image/*">
+              <div id="preview" class="preview-box d-flex align-items-center justify-content-center">
+                {% if channel.photo %}
+                  <img src="{{ channel.photo.url }}" alt="preview" style="width:100%;height:100%;object-fit:cover;">
+                {% else %}
+                  <span class="text-muted">Нет изображения</span>
+                {% endif %}
+              </div>
+              <div class="mt-2 d-flex" style="gap:8px;">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="pickPhotoBtn">Загрузить</button>
+                <button type="button" class="btn btn-sm btn-outline-danger" id="clearPhotoBtn" {% if not channel.photo %}disabled{% endif %}>Очистить</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-success">Сохранить</button>
+      <a href="{% url 'admin_panel:channels_page' %}" class="btn btn-outline-secondary">Отмена</a>
+    </form>
+
+  </div>
+</section>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const hidden = document.getElementById("is_add_suffix");
+  const buttons = document.querySelectorAll("#suffix-toggle .suffix-btn");
+  buttons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      buttons.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      hidden.value = btn.dataset.value;
+    });
+  });
+});
+</script>
+
+<script>
+(function () {
+  const photoInput = document.getElementById('photo');
+  const previewBox = document.getElementById('preview');
+  const pickBtn    = document.getElementById('pickPhotoBtn');
+  const clearBtn   = document.getElementById('clearPhotoBtn');
+
+  function showPreview(src) {
+    previewBox.innerHTML = `<img src="${src}" alt="preview" style="width:100%;height:100%;object-fit:cover;">`;
+    clearBtn.disabled = false;
+  }
+  function clearPreview() {
+    if (photoInput) photoInput.value = '';
+    previewBox.innerHTML = `<span class="text-muted">Нет изображения</span>`;
+    clearBtn.disabled = true;
+  }
+
+  if (photoInput) {
+    photoInput.addEventListener('change', e => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return clearPreview();
+      const r = new FileReader();
+      r.onload = ev => showPreview(ev.target.result);
+      r.readAsDataURL(f);
+    });
+  }
+  if (pickBtn)  pickBtn.addEventListener('click', () => photoInput.click());
+  if (clearBtn) clearBtn.addEventListener('click', clearPreview);
+  previewBox.addEventListener('click', () => photoInput.click());
+})();
+</script>
+{% endblock %}
+{% extends "adminlte/base.html" %}
+{% load static %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h1 class="mb-0">Добавить группу</h1>
+    </div>
+
+    <form method="post" id="addGroupForm" enctype="multipart/form-data"
+          action="{% url 'admin_panel:entities_add' %}">
+      {% csrf_token %}
+      <div class="mb-3">
+        <button type="button" id="autoFillBtn" class="btn btn-secondary">Заполнить автоматически</button>
+      </div>
+
+      <div class="row">
+        <!-- Левая колонка -->
+        <div class="col-md-6">
+          <div class="form-group" id="linkWrapper">
+            <label for="link">Ссылка на группу</label>
+            <input type="text" name="link" id="link" class="form-control"
+                   placeholder="https://t.me/example или @example">
+          </div>
+
+          <div class="form-group">
+            <label for="telegram_id">Telegram ID</label>
+            <input type="number" step="1" name="telegram_id" id="telegram_id" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label for="name">Название</label>
+            <input type="text" name="name" id="name" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label for="description">Описание</label>
+            <textarea name="description" id="description" class="form-control" rows="3"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="country">Страна</label>
+            <select name="country" id="country" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for c in countries %}
+                <option value="{{ c.name }}">{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Правая колонка -->
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="category">Категория</label>
+            <select name="category" id="category" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for c in categories %}
+                <option value="{{ c.name }}">{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="owner">Владелец</label>
+            <select name="owner" id="owner" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for o in owners %}
+                <option value="{{ o }}">{{ o }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="destination_type">Тип</label>
+            <select name="destination_type" id="destination_type" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for d in destination_types %}
+                <option value="{{ d }}">{{ d }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="tags">Теги</label>
+            <input type="text" name="tags" id="tags" class="form-control"
+                   placeholder="например: чат, мемы, новости">
+          </div>
+          
+          <div class="form-group">
+            <label for="text_suffix">Текст-суффикс (добавляется в конец каждого поста)</label>
+            <textarea name="text_suffix" id="text_suffix" class="form-control" rows="4"
+                      placeholder="Например:&#10;— Подпишись: @mychannel&#10;— Реклама: @ads_contact"></textarea>
+            <small class="form-text text-muted">Можно оставить пустым. Будет добавлен как отдельный блок после исходного текста/подписи.</small>
+          </div>
+
+          <div class="form-group" id="photoWrapper">
+            <label for="photo">Картинка</label>
+            <div class="image-upload" style="max-width:250px;">
+              <input type="file" name="photo" id="photo" class="d-none" accept="image/*">
+              <div id="preview" class="preview-box d-flex align-items-center justify-content-center">
+                <span class="text-muted">Нет изображения</span>
+              </div>
+              <div class="mt-2 d-flex" style="gap:8px;">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="pickPhotoBtn">Загрузить</button>
+                <button type="button" class="btn btn-sm btn-outline-danger" id="clearPhotoBtn" disabled>Очистить</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-success">Сохранить</button>
+      <a href="{% url 'admin_panel:entities_page' %}" class="btn btn-outline-secondary">Отмена</a>
+    </form>
+  </div>
+</section>
+
+<script>
+(function () {
+  const photoInput = document.getElementById('photo');
+  const previewBox = document.getElementById('preview');
+  const pickBtn    = document.getElementById('pickPhotoBtn');
+  const clearBtn   = document.getElementById('clearPhotoBtn');
+
+  const PARSER_URL = (window.API && window.API.PARSER) || "/api/parse_channel";
+
+  function showPreview(src){
+    previewBox.innerHTML = `<img src="${src}" alt="preview" style="width:100%;height:100%;object-fit:cover;">`;
+    clearBtn.disabled = false;
+  }
+  function clearPreview(){
+    if (photoInput) photoInput.value = '';
+    previewBox.innerHTML = `<span class="text-muted">Нет изображения</span>`;
+    clearBtn.disabled = true;
+  }
+  if (photoInput) {
+    photoInput.addEventListener('change', ev => {
+      const f = ev.target.files && ev.target.files[0];
+      if (!f) return clearPreview();
+      const r = new FileReader();
+      r.onload = e2 => showPreview(e2.target.result);
+      r.readAsDataURL(f);
+    });
+  }
+  if (pickBtn)  pickBtn.addEventListener('click', () => photoInput.click());
+  if (clearBtn) clearBtn.addEventListener('click', clearPreview);
+  previewBox.addEventListener('click', () => photoInput.click());
+
+  document.getElementById("autoFillBtn").addEventListener("click", async () => {
+    const linkInput = document.getElementById("link");
+    const link = linkInput.value.trim();
+    if (!link) return alert("Введите ссылку для автозаполнения");
+
+    try {
+      const resp = await fetch(PARSER_URL, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ link })
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || data.error || "Ошибка API");
+
+      document.getElementById("telegram_id").value = data.telegram_id ?? data.tg_id ?? "";
+      document.getElementById("name").value        = data.name || "";
+      if (data.description) {
+        document.getElementById("description").value = data.description;
+      }
+      if (data.country)  setSelectByText("country",  data.country);
+      if (data.category) setSelectByText("category", data.category);
+      if (data.tags) document.getElementById("tags").value = data.tags;
+
+      // делаем поля readOnly
+      linkInput.readOnly = true;
+      document.getElementById("telegram_id").readOnly = true;
+      document.getElementById("description").readOnly = true;
+      document.getElementById("name").readOnly = true;
+      pickBtn.disabled = true;
+
+      if (data.photo) {
+        const photoUrl = data.photo;
+        showPreview(photoUrl);
+
+        try {
+          const imgResp = await fetch(photoUrl);
+          if (imgResp.ok) {
+            const rawCT = (imgResp.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+            if (rawCT.startsWith("image/")) {
+              const buf = await imgResp.arrayBuffer();
+              const ext = (rawCT.split("/")[1] || "jpg").replace(/[^a-z0-9]/gi, "");
+              const file = new File([buf], `autofill.${ext}`, { type: rawCT });
+              const dt = new DataTransfer();
+              dt.items.add(file);
+              photoInput.files = dt.files;
+
+              // блокируем управление
+              pickBtn.style.display = "none";
+              clearBtn.style.display = "none";
+              previewBox.style.cursor = "default";
+              previewBox.onclick = null;
+            }
+          }
+        } catch (err) {
+          console.warn("Ошибка загрузки фото:", err);
+        }
+      } else {
+        clearPreview();
+      }
+
+    } catch (e) {
+      alert("Автозаполнение не удалось: " + e.message);
+    }
+  });
+
+  function setSelectByText(selId, text) {
+    const sel = document.getElementById(selId);
+    const val = (text||"").trim().toLowerCase();
+    if (!sel || !val) return;
+    for (const opt of sel.options) {
+      if (opt.value.trim().toLowerCase() === val || opt.textContent.trim().toLowerCase() === val) {
+        opt.selected = true; return;
+      }
+    }
+    const opt = document.createElement('option');
+    opt.value = text; opt.textContent = text; opt.selected = true;
+    sel.insertBefore(opt, sel.firstChild);
+  }
+})();
+</script>
+{% endblock %}
+{% extends "adminlte/base.html" %}
+{% load static %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <h1 class="mb-3">Редактировать группу</h1>
+
+    <form method="post" id="editGroupForm" enctype="multipart/form-data">
+      {% csrf_token %}
+
+      <div class="row">
+        <!-- Левая колонка -->
+        <div class="col-md-6">
+          <div class="form-group mb-2">
+            <label for="name">Название</label>
+            <input type="text" name="name" id="name" class="form-control" value="{{ group.name }}" required>
+          </div>
+
+          <div class="form-group mb-2">
+            <label for="order">Порядок</label>
+            <input type="text" name="order" id="order" class="form-control" value="{{ group.order|default_if_none:'' }}">
+          </div>
+
+          <div class="form-group mb-2">
+            <label for="description">Описание</label>
+            <textarea name="description" id="description" class="form-control" rows="3">{{ group.description }}</textarea>
+          </div>
+
+          <div class="form-group mb-2">
+            <label for="country">Страна</label>
+            <select name="country" id="country" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for c in countries %}
+                <option value="{{ c.name }}" {% if group.country and group.country.name == c.name %}selected{% endif %}>{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group mb-2">
+            <label for="category">Категория</label>
+            <select name="category" id="category" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for c in categories %}
+                <option value="{{ c.name }}" {% if group.category and group.category.name == c.name %}selected{% endif %}>{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Правая колонка -->
+        <div class="col-md-6">
+          <div class="form-group mb-2">
+            <label for="owner">Владелец</label>
+            <select name="owner" id="owner" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for o in owners %}
+                <option value="{{ o }}" {% if group.owner == o %}selected{% endif %}>{{ o }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group mb-2">
+            <label for="destination_type">Тип</label>
+            <select name="destination_type" id="destination_type" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for d in destination_types %}
+                <option value="{{ d }}" {% if group.destination_type == d %}selected{% endif %}>{{ d }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group mb-2">
+            <label for="tags">Теги (через запятую)</label>
+            <input type="text" name="tags" id="tags" class="form-control" value="{{ group.tags }}">
+          </div>
+
+          <div class="form-group mb-2">
+            <label for="link">Ссылка на вступление</label>
+            <input type="text" name="link" id="link" class="form-control" value="{{ group.link }}">
+          </div>
+
+          <!-- Текст-суффикс + переключатель -->
+          <div class="form-group mb-2">
+            <label for="text_suffix">Текст-суффикс (добавляется в конец каждого поста)</label>
+
+            <div class="d-flex align-items-center" style="gap: 6px;">
+              <textarea name="text_suffix" id="text_suffix" class="form-control flex-grow-1" rows="3"
+                        placeholder="Например:&#10;— Подпишись: @mychannel&#10;— Реклама: @ads_contact">{{ group.text_suffix }}</textarea>
+
+              <!-- кнопки выбора -->
+              <div class="d-flex align-items-center" style="flex-shrink:0;">
+                <div class="d-flex align-items-center">
+                  <span class="mr-2">Суффикс:</span>
+                  <label class="switch switch-blue mb-0">
+                    <input type="checkbox" id="toggle-suffix" {% if group.is_add_suffix %}checked{% endif %}>
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <input type="hidden" name="is_add_suffix" id="is_add_suffix" value="{% if group.is_add_suffix %}1{% else %}0{% endif %}">
+          </div>
+
+          <div class="form-group mb-2">
+            <label for="photo">Картинка</label>
+            <div class="image-upload" style="max-width:230px;">
+              <input type="file" name="photo" id="photo" class="d-none" accept="image/*">
+              <div id="preview" class="preview-box d-flex align-items-center justify-content-center" style="height:140px;">
+                {% if group.photo %}
+                  <img src="{{ group.photo.url }}" alt="preview" style="width:100%;height:100%;object-fit:cover;">
+                {% else %}
+                  <span class="text-muted">Нет изображения</span>
+                {% endif %}
+              </div>
+              <div class="mt-1 d-flex" style="gap:6px;">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="pickPhotoBtn">Загрузить</button>
+                <button type="button" class="btn btn-sm btn-outline-danger" id="clearPhotoBtn" {% if not group.photo %}disabled{% endif %}>Очистить</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-3">
+        <button type="submit" class="btn btn-success">Сохранить</button>
+        <a href="{% url 'admin_panel:entities_page' %}" class="btn btn-outline-secondary">Отмена</a>
+      </div>
+    </form>
+  </div>
+</section>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const hidden = document.getElementById("is_add_suffix");
+  const checkbox = document.getElementById("toggle-suffix");
+
+  if (!hidden || !checkbox) return;
+
+  // первичная синхронизация (на случай, если рендер не попал)
+  checkbox.checked = hidden.value === "1";
+
+  // обновление hidden при клике по тумблеру
+  checkbox.addEventListener("change", () => {
+    hidden.value = checkbox.checked ? "1" : "0";
+  });
+});
+</script>
+
+
+<script>
+(function () {
+  const photoInput = document.getElementById('photo');
+  const previewBox = document.getElementById('preview');
+  const pickBtn    = document.getElementById('pickPhotoBtn');
+  const clearBtn   = document.getElementById('clearPhotoBtn');
+
+  function showPreview(src) {
+    previewBox.innerHTML = `<img src="${src}" alt="preview" style="width:100%;height:100%;object-fit:cover;">`;
+    clearBtn.disabled = false;
+  }
+  function clearPreview() {
+    if (photoInput) photoInput.value = '';
+    previewBox.innerHTML = `<span class="text-muted">Нет изображения</span>`;
+    clearBtn.disabled = true;
+  }
+
+  if (photoInput) {
+    photoInput.addEventListener('change', e => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return clearPreview();
+      const r = new FileReader();
+      r.onload = ev => showPreview(ev.target.result);
+      r.readAsDataURL(f);
+    });
+  }
+  if (pickBtn)  pickBtn.addEventListener('click', () => photoInput.click());
+  if (clearBtn) clearBtn.addEventListener('click', clearPreview);
+  previewBox.addEventListener('click', () => photoInput.click());
+})();
+</script>
+
+<style>
+  .form-group label { margin-bottom: 3px !important; }
+  .form-group { margin-bottom: 8px !important; }
+  textarea.form-control { min-height: 70px; }
+</style>
+{% endblock %}
+<!-- Задачи -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Задачи публикаций</h2>
+  <a href="{% url 'admin_panel:channel_post_task_create' %}" class="btn btn-primary">
+    <i class="fas fa-plus"></i> Создать задачу
+  </a>
+</div>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th>Бот</th>
+      <th>Главный канал</th>
+      <th>Библиотеки</th>
+      <th>Действия</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in tasks %}
+    <tr>
+      <td>{{ t.bot.description|default:"—" }}</td>
+      <td>{{ t.main_channel.name }}</td>
+      <td>
+        {% for lib in t.libraries %}
+          <span class="badge badge-secondary">{{ lib.name }}</span>
+        {% endfor %}
+      </td>
+      <td>
+        {% for lib in t.libraries %}
+          <a href="{% url 'admin_panel:channel_post_task_delete' lib.category lib.id %}" 
+             class="btn btn-sm btn-danger" title="Удалить">
+            <i class="fas fa-trash"></i>
+          </a>
+        {% endfor %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="4" class="text-muted text-center">Нет задач для этого плагина</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% extends "adminlte/base.html" %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <h1 class="mb-4">Логи: {{ plugin.name }}</h1>
+
+    <form method="get" class="form-inline mb-3">
+      <label for="tail" class="mr-2">Последние строк:</label>
+      <input type="number" class="form-control mr-2" id="tail" name="tail" value="{{ tail|default:500 }}" min="50" step="50">
+      <button class="btn btn-primary">Обновить</button>
+    </form>
+
+    <pre style="background:#111;color:#eee;padding:12px;border-radius:6px;max-height:70vh;overflow:auto;white-space:pre-wrap;">{{ logs }}</pre>
+
+    <div class="mt-3">
+      <a href="{% url 'admin_panel:plugins_page' %}" class="btn btn-secondary">Назад</a>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% extends "adminlte/base.html" %}
+{% load static %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h1 class="mb-0">Плагины</h1>
+      <span class="col-toggle-btn" title="Управление столбцами">
+        <i class="fas fa-cog"></i>
+      </span>
+    </div>
+
+    <ul class="nav nav-tabs" id="pluginTabs" role="tablist">
+      <li class="nav-item">
+        <a class="nav-link active" id="working-tab" data-toggle="tab" href="#working" role="tab">В работе</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="system-tab" data-toggle="tab" href="#system" role="tab">Системные</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="theme-tab" data-toggle="tab" href="#theme" role="tab">Тематические</a>
+      </li>
+    </ul>
+
+    <div class="tab-content mt-3">
+      <!-- В работе -->
+      <div class="tab-pane fade show active" id="working" role="tabpanel">
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover" 
+             id="groupsTable" data-sortable data-paginate>
+
+            <thead>
+              <tr>
+                <th>Название</th>
+                <th>Контейнер</th>
+                <th>Статус Docker</th>
+                <th>Описание</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in working_plugins %}
+                <tr>
+                  <td>{{ p.name }}</td>
+                  <td>{{ p.container_name|default:"—" }}</td>
+                  <td>{{ p.docker_status }}</td>
+                  <td>{{ p.description }}</td>
+                  <td class="text-nowrap">
+                  {% if p.container_name == "group_post" %}
+                    <a href="{% url 'admin_panel:entity_post_tasks_view' %}" title="Задачи">
+                      <img src="{% static 'admin_panel/img/search.png' %}" alt="Открыть" class="icon-16">
+                    </a>&nbsp;
+                  {% endif %}
+
+                  {% if p.docker_status == "running" %}
+                    <a href="{% url 'admin_panel:plugin_action' p.id 'stop' %}" title="Остановить">
+                      <img src="{% static 'admin_panel/img/stop.png' %}" alt="Остановить" class="icon-16">
+                    </a>&nbsp;
+                    <a href="{% url 'admin_panel:plugin_action' p.id 'restart' %}" title="Перезагрузить">
+                      <img src="{% static 'admin_panel/img/reload.png' %}" alt="Перезагрузить" class="icon-16">
+                    </a>
+                  {% else %}
+                    <a href="{% url 'admin_panel:plugin_action' p.id 'start' %}" title="Запустить">
+                      <img src="{% static 'admin_panel/img/start.png' %}" alt="Запустить" class="icon-16">
+                    </a>
+                  {% endif %}
+                  &nbsp;<a href="{% url 'admin_panel:plugin_logs' p.id %}" title="Логи">
+                    <img src="{% static 'admin_panel/img/logs.png' %}" alt="Логи" class="icon-16">
+                  </a>
+                </td>
+
+                </tr>
+              {% empty %}
+                <tr><td colspan="5" class="text-muted text-center">Нет плагинов</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Системные -->
+      <div class="tab-pane fade" id="system" role="tabpanel">
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover" data-sortable>
+            <thead>
+              <tr>
+                <th>Название</th>
+                <th>Контейнер</th>
+                <th>Статус Docker</th>
+                <th>Описание</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in system_plugins %}
+                <tr>
+                  <td>{{ p.name }}</td>
+                  <td>{{ p.container_name|default:"—" }}</td>
+                  <td>{{ p.docker_status }}</td>
+                  <td>{{ p.description }}</td>
+                  <td class="text-nowrap">
+                    {% if p.container_name %}
+                      <a href="{% url 'admin_panel:plugin_tasks' p.container_name %}" title="Задачи">
+                        <img src="{% static 'admin_panel/img/search.png' %}" alt="Открыть" class="icon-16">
+                      </a>&nbsp;
+                    {% endif %}
+                    {% if p.docker_status == "running" %}
+                      <a href="{% url 'admin_panel:plugin_action' p.id 'stop' %}" title="Остановить">
+                        <img src="{% static 'admin_panel/img/stop.png' %}" alt="Остановить" class="icon-16">
+                      </a>&nbsp;
+                      <a href="{% url 'admin_panel:plugin_action' p.id 'restart' %}" title="Перезагрузить">
+                        <img src="{% static 'admin_panel/img/reload.png' %}" alt="Перезагрузить" class="icon-16">
+                      </a>
+                    {% else %}
+                      <a href="{% url 'admin_panel:plugin_action' p.id 'start' %}" title="Запустить">
+                        <img src="{% static 'admin_panel/img/start.png' %}" alt="Запустить" class="icon-16">
+                      </a>
+                    {% endif %}
+                    &nbsp;<a href="{% url 'admin_panel:plugin_logs' p.id %}" title="Логи">
+                      <img src="{% static 'admin_panel/img/logs.png' %}" alt="Логи" class="icon-16">
+                    </a>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="5" class="text-muted text-center">Нет плагинов</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Тематические -->
+      <div class="tab-pane fade" id="theme" role="tabpanel">
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover" data-sortable>
+            <thead>
+              <tr>
+                <th>Название</th>
+                <th>Контейнер</th>
+                <th>Статус Docker</th>
+                <th>Описание</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in theme_plugins %}
+                <tr>
+                  <td>{{ p.name }}</td>
+                  <td>{{ p.container_name|default:"—" }}</td>
+                  <td>{{ p.docker_status }}</td>
+                  <td>{{ p.description }}</td>
+                  <td class="text-nowrap">
+                    {% if p.container_name %}
+                      <a href="{% url 'admin_panel:plugin_tasks' p.container_name %}" title="Задачи">
+                        <img src="{% static 'admin_panel/img/search.png' %}" alt="Открыть" class="icon-16">
+                      </a>&nbsp;
+                    {% endif %}
+                    {% if p.docker_status == "running" %}
+                      <a href="{% url 'admin_panel:plugin_action' p.id 'stop' %}" title="Остановить">
+                        <img src="{% static 'admin_panel/img/stop.png' %}" alt="Остановить" class="icon-16">
+                      </a>&nbsp;
+                      <a href="{% url 'admin_panel:plugin_action' p.id 'restart' %}" title="Перезагрузить">
+                        <img src="{% static 'admin_panel/img/reload.png' %}" alt="Перезагрузить" class="icon-16">
+                      </a>
+                    {% else %}
+                      <a href="{% url 'admin_panel:plugin_action' p.id 'start' %}" title="Запустить">
+                        <img src="{% static 'admin_panel/img/start.png' %}" alt="Запустить" class="icon-16">
+                      </a>
+                    {% endif %}
+                    &nbsp;<a href="{% url 'admin_panel:plugin_logs' p.id %}" title="Логи">
+                      <img src="{% static 'admin_panel/img/logs.png' %}" alt="Логи" class="icon-16">
+                    </a>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="5" class="text-muted text-center">Нет плагинов</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module">
+  import { initSortableTables } from "{% static 'admin_panel/js/sortableTable.js' %}";
+  import { initTablePagination } from "{% static 'admin_panel/js/pagination.js' %}";
+  import "{% static 'admin_panel/js/colToggles.js' %}";
+
+  initSortableTables();
+  initTablePagination(20); // 20 строк на страницу
+</script>
+
+
+<script>
+  {{ block.super }}
+  $(function () {
+    // 1) Находим ветку "Плагины" в сайдбаре (иконка fa-plug) и раскрываем её
+    const $pluginsTree = $('.main-sidebar .nav-item.has-treeview')
+      .has('.nav-link .fa-plug');
+    if ($pluginsTree.length) {
+      $pluginsTree.addClass('menu-open');                    // помечаем как открытую
+      $pluginsTree.children('.nav-treeview').css('display','block'); // показываем подменю
+      // Сообщаем AdminLTE, что ветка раскрыта — это вызовет твой adjustSidebar()
+      $(document).trigger('expanded.lte.treeview');
+    }
+
+    // 2) При переключении вкладок пересчитываем ещё раз через стандартные события
+    $('a[data-toggle="tab"]').on('shown.bs.tab', function () {
+      // триггерим то же событие, на которое уже подписан базовый код
+      $(document).trigger('expanded.lte.treeview');
+    });
+
+    // 3) На всякий случай — первый пересчёт после первичной отрисовки
+    setTimeout(function () {
+      $(document).trigger('expanded.lte.treeview');
+    }, 300);
+  });
+</script>
+{% endblock %}

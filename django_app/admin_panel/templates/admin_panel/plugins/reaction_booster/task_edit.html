@@ -1,0 +1,336 @@
+<!-- templates/admin_panel/plugins/reaction_booster/task_edit.html -->
+{% extends "adminlte/base.html" %}
+{% block body_class %}page-scroll{% endblock %}
+{% load static %}
+{% load filters %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+
+    <!-- ===== Заголовок ===== -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h1 class="mb-0">{{ page_title }}</h1>
+
+      <div class="d-flex align-items-center" style="gap:12px;">
+        <span>Выкл</span>
+        <label class="switch switch-blue mb-0">
+          <input type="checkbox" id="toggle-active" {% if task.is_active %}checked{% endif %}>
+          <span class="slider round"></span>
+        </label>
+        <span>Вкл</span>
+        <input type="hidden" name="is_active" id="is_active" form="main-form"
+               value="{% if task.is_active %}1{% else %}0{% endif %}">
+
+        {% if task %}
+        <form method="post" action="{% url 'admin_panel:reaction_task_delete' task.id %}"
+              onsubmit="return confirm('Удалить задачу #{{ task.id }}?');">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Удалить</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ===== Форма ===== -->
+    <form method="post" id="main-form">
+      {% csrf_token %}
+      <div class="task-form bordered-box p-3 bg-white rounded mb-4">
+
+        <!-- Канал-группа -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Канал-группа</div>
+          <div class="right" style="display:flex; align-items:center; gap:8px;">
+            <select name="target_id" class="form-control" style="min-width: 600px; max-width:800px;" required>
+              <option value="">Выберите канал из списка</option>
+              {% for e in entities %}
+                <option value="{{ e.id }}"
+                        data-link="{{ e.link|default:'' }}"
+                        {% if task and task.target_id == e.id %}selected{% endif %}>
+                  {{ e.name }}
+                </option>
+              {% endfor %}
+            </select>
+            <!-- Иконка поиска слева -->
+            <button type="button" class="btn btn-outline-secondary" id="openLinkBtn" title="Открыть канал/группу">
+              <img src="{% static 'admin_panel/img/search.png' %}" alt="Открыть" class="icon-16">
+            </button>
+          </div>
+        </div>
+
+        <!-- Кол-во постов -->
+        <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;">Кол-во постов</div>
+          <div class="right d-flex flex-wrap align-items-center" style="gap:16px;">
+            {% with value=task.posts_count|default:10 %}
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="posts_count" value="10" {% if not task or value == 10 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">10</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="posts_count" value="20" {% if task and value == 20 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">20</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="posts_count" value="50" {% if task and value == 50 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">50</span>
+            </label>
+            {% endwith %}
+          </div>
+        </div>
+
+        <!-- Реакций на пост -->
+        <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;">Реакций на пост</div>
+          <div class="right d-flex flex-wrap align-items-center" style="gap:16px;">
+            {% with value=task.reactions_per_post|default:5 %}
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="reactions_per_post" value="1" {% if not task or value == 1 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">1</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="reactions_per_post" value="2" {% if task and value == 2 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">2</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="reactions_per_post" value="5" {% if task and value == 5 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">5</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="reactions_per_post" value="20" {% if task and value == 20 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">20</span>
+            </label>
+            {% endwith %}
+          </div>
+        </div>
+
+        <!-- Тип реакций -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Тип реакций</div>
+          <div class="right" style="max-width:400px;">
+            {% with value=task.reaction_type|default:"positive" %}
+            <select name="reaction_type" class="form-control">
+              <option value="positive" {% if value == "positive" %}selected{% endif %}>
+                Положительные (👍 🙏 🔥 ⭐️ ❤️)
+              </option>
+              <option value="negative" {% if value == "negative" %}selected{% endif %}>
+                Отрицательные (😢 👎 💙 🚫 ❌)
+              </option>
+            </select>
+            {% endwith %}
+          </div>
+        </div>
+
+        <!-- Частота запуска -->
+        <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;">Частота запуска</div>
+          <div class="right d-flex flex-wrap align-items-center" style="gap:16px;">
+            {% with value=task.frequency_days|default:1 %}
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="frequency_days" value="1" {% if value == 1 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Каждый 1 день</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="frequency_days" value="3" {% if value == 3 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Каждые 3 дня</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="frequency_days" value="7" {% if value == 7 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Раз в неделю</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="frequency_days" value="14" {% if value == 14 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Раз в 2 недели</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="frequency_days" value="30" {% if value == 30 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Раз в месяц</span>
+            </label>
+            {% endwith %}
+          </div>
+        </div>
+
+        <!-- Время запуска + "Запустить только сейчас" -->
+        <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;">Время запуска</div>
+          <div class="right d-flex align-items-center" style="gap:20px; flex-wrap:wrap;">
+            <input type="time"
+                   name="launch_time"
+                   class="form-control"
+                   style="width:140px;"
+                   value="{% if task and task.launch_time %}{{ task.launch_time|time:'H:i' }}{% else %}10:00{% endif %}">
+            
+            <input type="hidden" name="run_once_now" id="run_once_now"
+                   value="{% if task and task.run_once_now %}1{% else %}0{% endif %}">
+            <button type="button" id="run-once-btn" class="btn">
+              Запустить только сейчас
+            </button>
+          </div>
+        </div>
+
+        <!-- Кнопки -->
+        <div class="form-row mt-4">
+          <div class="left"></div>
+          <div class="right d-flex" style="gap:12px;">
+            <button type="submit" class="btn btn-success">Сохранить в БД</button>
+            <a href="{% url 'admin_panel:reaction_tasks_view' %}" class="btn btn-secondary">Отмена</a>
+          </div>
+        </div>
+
+      </div>
+    </form>
+
+    <!-- ===== Таблица быстрого доступа ===== -->
+    <div class="bordered-box p-3 bg-white rounded">
+      <h3 class="mb-3">Все задачи лайкера постов</h3>
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover" data-sortable data-paginate>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Канал-группа</th>
+              <th>Статус</th>
+              <th>За месяц</th>
+              <th>За неделю</th>
+              <th>Вчера</th>
+              <th>Сегодня</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in all_tasks %}
+            <tr>
+              <td class="text-center">{{ t.id }}</td>
+              <td>{{ t.target.name|default:"—" }}</td>
+              <td class="text-center">
+                {% if t.is_active %}
+                  <span class="status-dot active" title="Активна"></span>
+                {% else %}
+                  <span class="status-dot gray" title="Неактивна"></span>
+                {% endif %}
+              </td>
+
+              <td class="text-center">
+                {% if t.month_total %}
+                  <span class="text-success">+{{ t.month_total }}</span>
+                {% else %}
+                  <span class="text-danger">0</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if t.week_total %}
+                  <span class="text-success">+{{ t.week_total }}</span>
+                {% else %}
+                  <span class="text-danger">0</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if t.yesterday_total %}
+                  <span class="text-success">+{{ t.yesterday_total }}</span>
+                {% else %}
+                  <span class="text-danger">0</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if t.today_total %}
+                  <span class="text-success">+{{ t.today_total }}</span>
+                {% else %}
+                  <span class="text-danger">0</span>
+                {% endif %}
+              </td>
+
+              <td class="text-center text-nowrap">
+                <a href="{% url 'admin_panel:reaction_task_edit' t.id %}" title="Редактировать">
+                  <img src="{% static 'admin_panel/img/edit.png' %}" alt="Редактировать" class="icon-16 mr-2">
+                </a>
+                <a href="{% url 'admin_panel:reaction_task_edit' t.id %}" title="Удалить">
+                  <img src="{% static 'admin_panel/img/delete.png' %}" alt="Удалить" class="icon-16">
+                </a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" class="text-center text-muted">Задачи отсутствуют</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // Тумблер активности
+  const toggle = document.getElementById("toggle-active");
+  const hidden = document.getElementById("is_active");
+  if (toggle && hidden) {
+    toggle.addEventListener("change", () => {
+      hidden.value = toggle.checked ? "1" : "0";
+    });
+  }
+
+  // Открытие ссылки на выбранный канал/группу
+  const openLinkBtn = document.getElementById('openLinkBtn');
+  const select = document.querySelector('select[name="target_id"]');
+  if (openLinkBtn && select) {
+    openLinkBtn.addEventListener('click', () => {
+      const opt = select.options[select.selectedIndex];
+      const link = opt ? opt.dataset.link : "";
+      if (!link) {
+        alert('Для выбранного канала/группы нет ссылки.');
+        return;
+      }
+      let url = link;
+      if (!url.startsWith('http')) {
+        url = 'https://t.me/' + link.replace('@', '');
+      }
+      window.open(url, '_blank');
+    });
+  }
+
+  // Кнопка "Запустить только сейчас"
+  const runOnceBtn = document.getElementById("run-once-btn");
+  const runOnceInput = document.getElementById("run_once_now");
+  if (runOnceBtn && runOnceInput) {
+    const applyState = () => {
+      const isOn = runOnceInput.value === "1";
+      runOnceBtn.classList.toggle("btn-primary", isOn);
+      runOnceBtn.classList.toggle("btn-outline-primary", !isOn);
+    };
+    // начальное состояние
+    runOnceBtn.classList.add("btn-outline-primary");
+    applyState();
+
+    runOnceBtn.addEventListener("click", () => {
+      runOnceInput.value = runOnceInput.value === "1" ? "0" : "1";
+      applyState();
+    });
+  }
+});
+</script>
+
+<!-- Подключение скриптов для таблицы -->
+<script type="module">
+  import { initSortableTables } from "{% static 'admin_panel/js/sortableTable.js' %}";
+  import { initTablePagination } from "{% static 'admin_panel/js/pagination.js' %}";
+  import "{% static 'admin_panel/js/colToggles.js' %}";
+
+  initSortableTables();
+  initTablePagination(20);
+</script>
+
+{% endblock %}
+

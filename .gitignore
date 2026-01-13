@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+.build/
+
+# Venv
+venv/
+*/venv/
+
+# Телеграм сессии, ключи и артефакты
+*.session
+*.session-journal
+*.session-shm
+*.session-wal
+telethon_sessions/
+channel_post_tg/sessions/
+channel_post_tg/telethon_sessions/
+django_app/var/pyrogram_sessions/
+group_post_tg/sessions/
+*_pyrogram*.session
+*_telethon*.session
+
+# Медиа/аватарки 
+avatars/
+django_app/media/
+channel_post_tg/avatars/
+group_post_tg/avatars/
+
+# Собранные статики
+django_app/staticfiles/
+
+# Логи и временные
+*.log
+*.out
+*.tmp
+*.swp
+*.swo
+*.DS_Store
+
+# Локальные бэкапы
+django_app/python-3.10-slim.tar.gz
+
+
+# Docker
+*.pid
+*.seed
+*.tar
+*.tar.gz
+
+# Env
+.env
+*.env
+env/
+
+django_app/bot_manager/settings.py
+
+# резервные файлы и бэкапы
+backups/
+
+# изображения админки
+django_app/*.jpg
+
+

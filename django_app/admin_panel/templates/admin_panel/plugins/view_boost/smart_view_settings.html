@@ -1,0 +1,192 @@
+<!-- FULL UPDATED FILE WITHOUT MACRO -->
+{% extends "adminlte/base.html" %}
+{% load static %}
+{% load filters %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+
+    <!-- ===== Верхняя панель ===== -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="d-flex align-items-center">
+        <h1 class="mb-0 mr-3">{{ page_title }}</h1>
+        <div class="btn-toolbar" role="toolbar">
+          <button form="main-form" type="submit" class="btn btn-success mr-2">Сохранить в БД</button>
+          <a href="{% url 'admin_panel:view_boost_tasks_view' %}" class="btn btn-secondary">Отмена</a>
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center" style="gap:12px;">
+        <span>Выкл</span>
+        <label class="switch switch-blue mb-0">
+          <input type="checkbox" form='main-form' name="is_active" id="toggle-active" value="1" {% if is_active %}checked{% endif %}>
+          <span class="slider round"></span>
+        </label>
+        <span>Вкл</span>
+      </div>
+    </div>
+
+    <form method="post" id="main-form">
+      {% csrf_token %}
+
+      <!-- ===== SECTION TEMPLATE (manual duplication) ===== -->
+
+      {% include "admin_panel/plugins/view_boost/section_block.html" with title="Утренний пост (05:00–10:00)" PREFIX="morning" DATA=morning_day1 chart_id="chart-morning" %}
+
+      {% include "admin_panel/plugins/view_boost/section_block.html" with title="Дневной пост (10:00–16:00)" PREFIX="day" DATA=day_day1 chart_id="chart-day" %}
+
+      {% include "admin_panel/plugins/view_boost/section_block.html" with title="Вечерний пост (16:00–22:00)" PREFIX="evening" DATA=evening_day1 chart_id="chart-evening" %}
+
+      {% include "admin_panel/plugins/view_boost/section_block.html" with title="Ночной пост (22:00–05:00)" PREFIX="night" DATA=night_day1 chart_id="chart-night" %}
+
+    </form>
+  </div>
+</section>
+
+<style>
+  .bordered-box { border:1px solid #e0e0e0; }
+  .sv-vert { width: 260px; }
+  .sv-subtitle { font-weight:600; margin-bottom:8px; text-align:center; }
+
+  .sv-two-col {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+  }
+
+  .sv-row-2 {
+    display:grid;
+    grid-template-columns:60px 70px;
+    gap:6px;
+    margin-bottom:4px;
+  }
+
+  .sv-label { font-size:13px; }
+  .sv-input { text-align:center; font-size:13px; }
+
+  .sv-sum { margin-top:10px; font-weight:bold; text-align:center; }
+
+  /* Контейнер для центрирования Итого */
+  .sv-sum-container {
+    display: flex;
+    justify-content: center;
+    width: 200%;
+  }
+
+  .chart-container { width:100%; max-width:1150px; height:550px; }
+  /* 4 колонки по 6 часов */
+  .sv-four-col {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+
+  /* диаграмма должна совпадать по высоте с левым блоком */
+  .chart-container.auto-size {
+    width: 100%;
+    height: auto !important;
+    min-height: 250px; /* Минимальная высота для видимости */
+  }
+
+  .chart-container.auto-size canvas {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 250px; /* Ограничиваем максимальную высоту как у блока часов */
+  }
+
+  /* Выравниваем высоту блоков */
+  .sv-vert, .chart-container.auto-size {
+    height: 100px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sv-four-col {
+    flex-grow: 1;
+  }
+
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const MAX = 30;
+
+  function getVals(selector) {
+    return Array.from(document.querySelectorAll(selector)).map(i => {
+      let v = Number(i.value) || 0;
+      v = Math.max(0, Math.min(MAX, v));
+      if (String(v) !== i.value) i.value = v;
+      return v;
+    });
+  }
+
+  function build(prefix) {
+    return getVals('.sv-input.' + prefix);
+  }
+
+  const labels = [...Array(24).keys()].map(i => i + 1);
+
+  function makeChart(id, prefix, title) {
+    const ctx = document.getElementById(id);
+    return new Chart(ctx, {
+      type:"bar",
+      data:{ 
+        labels:labels, 
+        datasets:[{ 
+          data:build(prefix),
+          backgroundColor: '#b1f0b2', // Зеленый цвет
+          borderColor: '#1e7e34',     // Темно-зеленый для границы
+          borderWidth: 1,
+          label: title
+        }]
+      },
+      options:{
+        maintainAspectRatio: false,
+        animation:false, 
+        plugins:{
+          legend:{
+            display:false
+          }
+        }, 
+        scales:{
+          y:{
+            beginAtZero:true,
+            max:MAX
+          }
+        } 
+      }
+    });
+  }
+
+  const charts = {
+    morning: makeChart("chart-morning", "morning", "Утренний пост"),
+    day: makeChart("chart-day", "day", "Дневной пост"),
+    evening: makeChart("chart-evening", "evening", "Вечерний пост"),
+    night: makeChart("chart-night", "night", "Ночной пост"),
+  };
+
+  function replot(prefix) {
+    charts[prefix].data.datasets[0].data = build(prefix);
+    charts[prefix].update();
+  }
+
+  function updateSum(prefix) {
+    let sum = 0;
+    document.querySelectorAll('.sv-input.' + prefix).forEach(i => sum += Number(i.value) || 0);
+    document.querySelector('.' + prefix + '-sum').textContent = sum;
+  }
+
+  ["morning","day","evening","night"].forEach(prefix => {
+    document.querySelectorAll('.sv-input.' + prefix).forEach(i => {
+      i.addEventListener("input", () => {
+        replot(prefix);
+        updateSum(prefix);
+      });
+    });
+    updateSum(prefix);
+  });
+});
+</script>
+{% endblock %}

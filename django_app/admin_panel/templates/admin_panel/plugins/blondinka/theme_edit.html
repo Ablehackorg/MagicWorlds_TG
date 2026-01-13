@@ -1,0 +1,243 @@
+{% extends "adminlte/base.html" %}
+{% load static %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+
+    <!-- ===== Заголовок ===== -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <!-- Слева: заголовок и кнопки сохранения -->
+      <div class="d-flex align-items-center">
+        <h1 class="mb-0 mr-3">{{ page_title }}</h1>
+        <div class="btn-toolbar" role="toolbar">
+          <button type="submit" form="main-form" class="btn btn-success mr-2">Сохранить тему</button>
+          <a href="{% url 'admin_panel:themes_list' %}" class="btn btn-secondary">Отмена</a>
+        </div>
+      </div>
+
+      <!-- Справа: кнопка удаления -->
+      <div class="d-flex align-items-center">
+        {% if theme %}
+        <form method="post" action="{% url 'admin_panel:theme_delete' theme.id %}"
+              onsubmit="return confirm('Удалить тему «{{ theme.name }}»?');">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Удалить</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ===== Форма ===== -->
+    <form method="post" id="main-form">
+      {% csrf_token %}
+      
+      <!-- === БЛОК: Основные настройки темы === -->
+      <div class="section-bar">Основные настройки темы</div>
+      <div class="form-rows bordered-box p-3 bg-white rounded mb-4">
+        
+        <!-- Название темы -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Название темы</div>
+          <div class="right">
+            {% if theme and theme.category_id %}
+              <!-- Для тем, связанных с категориями - только отображение -->
+              <input type="text" class="form-control" 
+                     value="{{ theme.name|default:'' }}" 
+                     placeholder="Введите название темы" 
+                     readonly
+                     style="background-color: #f8f9fa; cursor: not-allowed;">
+              <small class="text-muted d-block mt-1">
+                Название темы синхронизировано с категорией. Для изменения перейдите в раздел "Справочники → Категории".
+              </small>
+              <input type="hidden" name="name" value="{{ theme.name|default:'' }}">
+            {% else %}
+              <!-- Для ручных тем - редактируемое поле -->
+              <input type="text" name="name" class="form-control" 
+                     value="{{ theme.name|default:'' }}" required 
+                     placeholder="Введите название темы">
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+
+      <!-- === БЛОК: Диалоги темы === -->
+      <div class="section-bar">Диалоги темы</div>
+      <div class="form-rows bordered-box p-3 bg-white rounded mb-4">
+        
+        <div class="dialogs-list">
+          {% if theme %}
+            {% for dialog in theme.dialogs.all %}
+              <div class="dialog-row d-flex align-items-center gap-2 mb-1 p-2 border rounded" id="dialog-row-{{ dialog.id }}">
+                <textarea name="dialog_message_{{ dialog.id }}" 
+                          class="form-control dialog-textarea flex-grow-1" rows="1"
+                          placeholder="Введите текст сообщения">{{ dialog.message }}</textarea>
+                <div class="d-flex align-items-center" style="gap:8px;">
+                  <button type="button" class="btn btn-link p-0 m-0 delete-dialog" 
+                          data-id="{{ dialog.id }}" title="Удалить диалог">
+                    <img src="{% static 'admin_panel/img/delete.png' %}" alt="Удалить" class="icon-16">
+                  </button>
+                </div>
+              </div>
+            {% endfor %}
+          {% endif %}
+          
+          <!-- Новые диалоги будут добавляться здесь -->
+          <div id="new-dialogs-container"></div>
+        </div>
+        
+        <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="addDialogBtn">
+          <i class="fas fa-plus"></i> Добавить диалог
+        </button>
+
+      </div>
+
+    </form>
+
+  </div>
+</section>
+
+<style>
+.section-bar{
+  background:#e9ecef;
+  color:#2e3a46;
+  font-weight:600;
+  padding:8px 12px;
+  margin:14px 0 6px;
+  border-radius:4px;
+  border:1px solid #dee2e6;
+}
+.form-rows{
+  border:1px solid #e9ecef;
+  border-radius:6px;
+  background:#fff;
+}
+.form-row{
+  display:flex;
+  align-items:center;
+  padding:10px 12px;
+  border-top:1px solid #f2f4f6;
+}
+.form-row:first-child{border-top:0;}
+.form-row .left{ 
+  font-weight:600;
+  color:#495057;
+  min-width:220px;
+}
+.form-row .right{ 
+  flex:1;
+}
+
+/* Стили для диалогов - уменьшены отступы */
+.dialog-row {
+  background: #f8f9fa;
+  transition: all 0.3s ease;
+  margin-bottom: 4px !important;
+}
+.dialog-row:hover {
+  background: #e9ecef;
+}
+.dialog-textarea {
+  min-height: 38px !important;
+  height: 38px;
+  max-height: 80px;
+  resize: vertical;
+  width: 60% !important;
+  flex: 0 0 60% !important;
+  margin-bottom: 0 !important;
+}
+.icon-16 {
+  width: 16px;
+  height: 16px;
+}
+
+/* Анимация удаления */
+.dialog-row.deleting {
+  transform: scale(0.95);
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+
+.delete-dialog {
+  transition: opacity 0.2s ease;
+  cursor: pointer;
+}
+
+.delete-dialog:hover {
+  opacity: 0.7;
+}
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  let newDialogCounter = 0;
+
+  // Функция для удаления диалога с анимацией
+  function deleteDialogRow(dialogRow, isExisting, dialogId) {
+    if (isExisting) {
+      // Для существующих диалогов создаем скрытое поле для пометки удаления
+      const deleteInput = document.createElement('input');
+      deleteInput.type = 'hidden';
+      deleteInput.name = `dialog_delete_${dialogId}`;
+      deleteInput.value = '1';
+      document.getElementById('main-form').appendChild(deleteInput);
+    }
+    
+    // Запускаем анимацию удаления
+    dialogRow.classList.add('deleting');
+    
+    // Удаляем элемент из DOM после завершения анимации
+    setTimeout(() => {
+      dialogRow.remove();
+    }, 300);
+  }
+
+  // === Кнопка добавления диалога ===
+  const addDialogBtn = document.getElementById("addDialogBtn");
+  const newDialogsContainer = document.getElementById("new-dialogs-container");
+
+  if (addDialogBtn && newDialogsContainer) {
+    addDialogBtn.addEventListener("click", function() {
+      newDialogCounter++;
+      const newDialog = document.createElement('div');
+      newDialog.className = 'dialog-row d-flex align-items-center gap-2 mb-1 p-2 border rounded';
+      newDialog.innerHTML = `
+        <textarea name="dialog_message_new_${newDialogCounter}" 
+                  class="form-control dialog-textarea flex-grow-1" rows="1" 
+                  placeholder="Введите текст сообщения"></textarea>
+        <div class="d-flex align-items-center" style="gap:8px;">
+          <button type="button" class="btn btn-link p-0 m-0 delete-dialog" 
+                  data-id="new_${newDialogCounter}" title="Удалить диалог">
+            <img src="{% static 'admin_panel/img/delete.png' %}" alt="Удалить" class="icon-16">
+          </button>
+        </div>
+      `;
+      newDialogsContainer.appendChild(newDialog);
+
+      // Обработчик удаления нового диалога
+      const deleteBtn = newDialog.querySelector('.delete-dialog');
+      deleteBtn.addEventListener('click', function() {
+        if (confirm('Удалить этот диалог?')) {
+          const dialogId = this.dataset.id;
+          deleteDialogRow(newDialog, false, dialogId);
+        }
+      });
+    });
+  }
+
+  // === Удаление существующих диалогов ===
+  document.querySelectorAll(".delete-dialog").forEach(btn => {
+    btn.addEventListener("click", function() {
+      const dialogId = this.dataset.id;
+      const dialogRow = this.closest('.dialog-row');
+      
+      if (confirm('Удалить этот диалог?')) {
+        const isExisting = !dialogId.startsWith('new_');
+        deleteDialogRow(dialogRow, isExisting, dialogId);
+      }
+    });
+  });
+
+});
+</script>
+{% endblock %}

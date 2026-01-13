@@ -1,0 +1,190 @@
+<!-- templates/admin_panel/notifications/list.html -->
+{% extends "adminlte/base.html" %}
+{% load static %}
+{% load notification_filters %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <div style="background: yellow; padding: 10px; margin: 10px;">
+    <strong>Отладка:</strong><br>
+    Пользователь: {{ request.user.username }}<br>
+    Аутентифицирован: {{ request.user.is_authenticated }}<br>
+    Путь: {{ request.path }}
+</div>
+    <!-- Заголовок и статистика -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+          <h1 class="mb-0">{{ page_title }}</h1>
+          <div class="d-flex align-items-center gap-3">
+            <div class="text-muted" style="font-size: 1.1rem;">
+              <span class="badge badge-info" style="font-size: 1em; padding: 0.5em 0.75em;">{{ stats.total }} всего</span>
+              <span class="badge badge-warning" style="font-size: 1em; padding: 0.5em 0.75em;">{{ stats.active }} активных</span>
+              <span class="badge badge-success" style="font-size: 1em; padding: 0.5em 0.75em;">{{ stats.resolved }} решено</span>
+            </div>
+            <span class="col-toggle-btn" title="Управление столбцами">
+              <i class="fas fa-cog"></i>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Таблица уведомлений -->
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover" 
+             id="notificationsTable" data-sortable data-paginate>
+        <thead>
+          <tr>
+            <th data-type="text">Код</th>
+            <th data-type="text">Уровень</th>
+            <th data-type="text">Заголовок</th>
+            <th data-type="text">Модуль</th>
+            <th data-type="text">Сущность</th>
+            <th data-type="date">Создано</th>
+            <th data-type="text">Статус</th>
+            <th class="no-sort" data-sortable="false">Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for notification in notifications %}
+          <tr {% if highlight_id == notification.id|stringformat:"i" %}class="table-warning"{% endif %}>
+            <!-- Код -->
+            <td>
+              <span class="font-weight-bold">{{ notification.notification_code }}</span>
+            </td>
+            
+            <!-- Уровень -->
+            <td>
+              <span class="status-dot {{ notification.notification_type.severity|severity_color }} mr-2"></span>
+              {{ notification.notification_type.get_severity_display }}
+            </td>
+            
+            <!-- Заголовок -->
+            <td>
+              <div class="d-flex flex-column">
+                <span class="font-weight-bold text-dark">
+                  {{ notification.title }}
+                </span>
+                <small class="text-muted text-truncate" style="max-width: 300px;">
+                  {{ notification.message }}
+                </small>
+              </div>
+            </td>
+            
+            <!-- Модуль -->
+            <td>{{ notification.module.name }}</td>
+            
+            <!-- Сущность -->
+            <td>
+              {% if notification.entity %}
+                <a href="{% url 'admin_panel:entities_edit' notification.entity.id %}" 
+                   class="text-info">
+                  {{ notification.entity.name }}
+                </a>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            
+            <!-- Время -->
+            <td>{{ notification.created_at|date:"d.m.Y H:i" }}</td>
+            
+            <!-- Статус -->
+            <td>
+              <span class="badge badge-{{ notification.status|status_color }}">
+                {{ notification.get_status_display }}
+              </span>
+            </td>
+            
+            <!-- Действия -->
+            <td class="text-center">
+              {% if notification.status != 'RESOLVED' %}
+              <form method="post" 
+                    action="{% url 'admin_panel:notification_resolve' notification.id %}"
+                    class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success btn-sm" title="Пометить как решенное"
+                        onclick="return confirm('Пометить уведомление как решенное?')">
+                  <i class="fas fa-check fa-lg"></i>
+                </button>
+              </form>
+              {% else %}
+              <span class="text-muted small">Решено</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4">
+              <i class="fas fa-bell-slash fa-2x mb-2"></i><br>
+              Уведомлений не найдено
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.status-dot.blue { background-color: #17a2b8; }
+.status-dot.green { background-color: #28a745; }
+.status-dot.yellow { background-color: #ffc107; }
+.status-dot.orange { background-color: #fd7e14; }
+.status-dot.red { background-color: #dc3545; }
+
+.badge.badge-NEW { background-color: #007bff; }
+.badge.badge-ACKNOWLEDGED { background-color: #6c757d; }
+.badge.badge-IN_PROGRESS { background-color: #17a2b8; }
+.badge.badge-RESOLVED { background-color: #28a745; }
+.badge.badge-DEFERRED { background-color: #ffc107; }
+.badge.badge-IGNORED { background-color: #6c757d; }
+
+.btn-success.btn-sm {
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.3rem;
+}
+
+.btn-success.btn-sm .fa-lg {
+  font-size: 1.1rem;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module">
+import {initSortableTables} from "{% static 'admin_panel/js/sortableTable.js' %}";
+import {initTablePagination} from "{% static 'admin_panel/js/pagination.js' %}";
+import {initValueFilters} from "{% static 'admin_panel/js/valueFilters.js' %}";
+import "{% static 'admin_panel/js/colToggles.js' %}";
+
+initSortableTables();
+initTablePagination(20);
+
+// Инициализация фильтров для уведомлений
+initValueFilters({
+  tableSelector: "#notificationsTable",
+  columns: ["Модуль", "Статус", "Уровень"], // Автоматически соберет уникальные значения
+  controlsContainerSelector: ".row.mb-4 .d-flex.justify-content-between",
+  beforeSelector: "h1.mb-0",
+  resort: (table) => {
+    // Пересортировка при отмене фильтра
+    const st = new SortableTable(table);
+  },
+  debug: false
+});
+</script>
+{% endblock %}

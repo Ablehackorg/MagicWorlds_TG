@@ -1,0 +1,201 @@
+{% extends "adminlte/base.html" %}
+{% load static %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h1 class="mb-0">Категории</h1>
+      <span class="col-toggle-btn" title="Управление столбцами">
+        <i class="fas fa-cog"></i>
+      </span>
+    </div>
+
+    <div class="d-flex justify-content-end mb-3">
+      <button id="showAddBtn" class="btn btn-add"><i class="fas fa-plus"></i> Добавить</a>
+      </a>
+    </div>
+
+
+    <div id="addPanel" class="card mb-4" style="display:none;">
+      <div class="card-header"><h3 class="card-title">Новая категория</h3></div>
+      <div class="card-body">
+        <form id="addForm">
+          {% csrf_token %}
+          <div class="form-group">
+            <label for="name">Название</label>
+            <input type="text" name="name" id="name" class="form-control" required>
+          </div>
+          <div class="mt-3 text-right">
+            <button type="submit" class="btn btn-success">Сохранить</button>
+            <button type="button" id="cancelAddBtn" class="btn btn-secondary">Отмена</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="editPanel" class="card mb-4" style="display:none;">
+      <div class="card-header"><h3 class="card-title">Редактирование категории</h3></div>
+      <div class="card-body">
+        <ul class="nav nav-tabs" id="editTabs"></ul>
+        <div class="tab-content pt-3" id="editPanes"></div>
+        <div class="mt-3 text-right">
+          <button id="saveEditBtn" class="btn btn-success">Сохранить</button>
+          <button id="cancelEditBtn" class="btn btn-secondary">Отмена</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover" 
+         id="categoriesTable" data-sortable data-paginate>
+        <thead>
+          <tr>
+            <th data-type="number">ID</th>
+            <th data-type="text">Название</th>
+            <th class="no-sort" data-sortable="false">Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in categories %}
+          <tr data-id="{{ c.id }}">
+            <td>{{ c.id }}</td>
+            <td class="category-name">{{ c.name }}</td>
+            <td class="text-center">
+              <a href="#" class="edit-link" data-id="{{ c.id }}">
+                <img src="{% static 'admin_panel/img/edit.png' %}" alt="Редактировать" class="icon-16">
+              </a>
+              <a href="#" class="delete-link" data-id="{{ c.id }}">
+                <img src="{% static 'admin_panel/img/delete.png' %}" alt="Удалить" class="icon-16">
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</section>
+
+<script type="module">
+  import { initSortableTables } from "{% static 'admin_panel/js/sortableTable.js' %}";
+  import { initTablePagination } from "{% static 'admin_panel/js/pagination.js' %}";
+  import "{% static 'admin_panel/js/colToggles.js' %}";
+
+  initSortableTables();
+  initTablePagination(20); // 20 строк на страницу
+</script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const csrftoken = document.querySelector("[name=csrfmiddlewaretoken]").value;
+  const tbody = document.querySelector("#categoriesTable tbody");
+
+  const addPanel = document.getElementById("addPanel");
+  document.getElementById("showAddBtn").onclick = () => { addPanel.style.display = "block"; };
+  document.getElementById("cancelAddBtn").onclick = () => { addPanel.style.display = "none"; };
+
+  document.getElementById("addForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    try {
+      const resp = await fetch("{% url 'admin_panel:category_add_ajax' %}", {
+        method: "POST",
+        headers: {"X-CSRFToken": csrftoken},
+        body: formData
+      });
+      if (!resp.ok) throw new Error("Ошибка при добавлении");
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+
+      tbody.insertAdjacentHTML("beforeend", `
+        <tr data-id="${data.id}">
+          <td>${data.id}</td>
+          <td class="category-name">${data.name}</td>
+          <td class="text-center">
+            <a href="#" class="edit-link" data-id="${data.id}">✏️</a>
+            <a href="#" class="delete-link" data-id="${data.id}">❌</a>
+          </td>
+        </tr>
+      `);
+      addPanel.style.display = "none";
+      e.target.reset();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const editPanel = document.getElementById("editPanel");
+  const editTabs = document.getElementById("editTabs");
+  const editPanes = document.getElementById("editPanes");
+
+  tbody.addEventListener("click", async (e) => {
+    const editEl = e.target.closest(".edit-link");
+    const delEl = e.target.closest(".delete-link");
+
+    if (editEl) {
+      e.preventDefault();
+      editTabs.innerHTML = "";
+      editPanes.innerHTML = "";
+      tbody.querySelectorAll("tr").forEach((tr, idx) => {
+        const id = tr.dataset.id;
+        const name = tr.querySelector(".category-name").textContent;
+        editTabs.insertAdjacentHTML("beforeend", `
+          <li class="nav-item">
+            <a class="nav-link ${idx===0 ? "active":""}" data-toggle="tab" href="#edit-${id}">${name}</a>
+          </li>
+        `);
+        editPanes.insertAdjacentHTML("beforeend", `
+          <div class="tab-pane fade ${idx===0 ? "show active":""}" id="edit-${id}">
+            <input type="text" class="form-control edit-input" data-id="${id}" value="${name}">
+          </div>
+        `);
+      });
+      editPanel.style.display = "block";
+    }
+
+    if (delEl) {
+      e.preventDefault();
+      const id = delEl.dataset.id;
+      try {
+        const resp = await fetch(`/categories/${id}/delete/`, {
+          method: "POST",
+          headers: {"X-CSRFToken": csrftoken}
+        });
+        if (!resp.ok) throw new Error("Ошибка при удалении");
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+        tbody.querySelector(`tr[data-id="${id}"]`).remove();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+  });
+
+  document.getElementById("cancelEditBtn").onclick = () => { editPanel.style.display = "none"; };
+
+  document.getElementById("saveEditBtn").onclick = async () => {
+    try {
+      for (const inp of document.querySelectorAll(".edit-input")) {
+        const id = inp.dataset.id;
+        const name = inp.value;
+        const resp = await fetch(`/categories/${id}/update/`, {
+          method: "POST",
+          headers: {"X-CSRFToken": csrftoken},
+          body: new URLSearchParams({name})
+        });
+        if (!resp.ok) throw new Error("Ошибка при сохранении");
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+        tbody.querySelector(`tr[data-id="${id}"] .category-name`).textContent = data.name;
+      }
+      editPanel.style.display = "none";
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+});
+</script>
+{% endblock %}

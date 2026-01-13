@@ -1,0 +1,81 @@
+{% extends "admin_panel/plugins/ads_post/task_form_base.html" %}
+{% block journal_section %}
+<div class="section-bar">Журнал выполнения</div>
+<div class="form-rows">
+
+  <!-- === Этап 1: Закреп === -->
+  <div class="form-row">
+    <div class="left">Закреп</div>
+    <div class="right">
+      <div class="d-flex" style="gap:12px;">
+        <div class="d-flex flex-column justify-content-center">
+          {% with now=time_now|default:None %}
+            {% if task.published_at and not task.unpinned_at and now|timesince:task.published_at > "01:10:00" %}
+              <span class="status-dot red" title="Просрочено"></span>
+            {% elif task.pinned_at and task.unpinned_at %}
+              <span class="status-dot green" title="Выполнено"></span>
+            {% elif task.published_at and not task.unpinned_at %}
+              <span class="status-dot blue" title="В процессе"></span>
+            {% else %}
+              <span class="status-dot gray" title="Ожидание публикации"></span>
+            {% endif %}
+          {% endwith %}
+        </div>
+
+        <div style="flex:1;">
+          <div class="mb-2">
+            По плану с 
+            <span class="date-block date-planned">{{ task.publish_at|date:"d.m.Y H:i" }}</span> 
+            по 
+            <span class="date-block date-planned">{{ planned_pin_end|date:"d.m.Y H:i" }}</span>
+          </div>
+          <div>
+            По факту с 
+            <span class="date-block {{ task.pinned_at|yesno:'date-success,date-muted' }}">{{ task.pinned_at|date:"d.m.Y H:i"|default:'—' }}</span>
+            по 
+            <span class="date-block {{ task.unpinned_at|yesno:'date-success,date-muted' }}">{{ task.unpinned_at|date:"d.m.Y H:i"|default:'—' }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- === Этап 2: Лента канала === -->
+  <div class="form-row">
+    <div class="left">Лента канала</div>
+    <div class="right">
+      <div class="d-flex" style="gap:12px;">
+        <div class="d-flex flex-column justify-content-center">
+          {% with now=time_now|default:None %}
+            {% if task.published_at and not task.deleted_at and now|timesince:task.published_at > "24:10:00" %}
+              <span class="status-dot red" title="Просрочено"></span>
+            {% elif task.published_at and task.deleted_at %}
+              <span class="status-dot green" title="Выполнено"></span>
+            {% elif task.published_at and not task.deleted_at %}
+              <span class="status-dot blue" title="В процессе"></span>
+            {% else %}
+              <span class="status-dot gray" title="Ожидание публикации"></span>
+            {% endif %}
+          {% endwith %}
+        </div>
+
+        <div style="flex:1;">
+          <div class="mb-2">
+            По плану с 
+            <span class="date-block date-planned">{{ task.publish_at|date:"d.m.Y H:i" }}</span> 
+            по 
+            <span class="date-block date-planned">{{ planned_feed_end|date:"d.m.Y H:i" }}</span>
+          </div>
+          <div>
+            По факту с 
+            <span class="date-block {{ task.published_at|yesno:'date-success,date-muted' }}">{{ task.published_at|date:"d.m.Y H:i"|default:'—' }}</span>
+            по 
+            <span class="date-block {{ task.deleted_at|yesno:'date-success,date-muted' }}">{{ task.deleted_at|date:"d.m.Y H:i"|default:'—' }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

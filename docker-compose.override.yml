@@ -1,0 +1,11 @@
+version: "3.9"
+
+services:
+  django:
+    volumes:
+      - ./django_app/staticfiles:/app/staticfiles
+
+  nginx:
+    volumes:
+      - ./django_app/staticfiles:/app/staticfiles:ro
+

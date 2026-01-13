@@ -1,0 +1,492 @@
+/* ==== Таблицы: без горизонтального скролла, компактно, 1-строчная обрезка ==== */
+
+/* === ТАБЛИЦЫ - БАЗОВЫЕ СТИЛИ === */
+:root {
+  --first-col-w: 50px;
+  --first-col-w-max: 60px;
+  --cell-pad-y: 0.18rem;
+  --cell-pad-x: 0.40rem;
+  --cell-font: 1.1rem;
+}
+
+/* Контейнер */
+.table-responsive {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+/* Таблица */
+.table-responsive table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--cell-font);
+  font-weight: normal;
+}
+
+/* Ячейки: одна строка + троеточие */
+.table-responsive th,
+.table-responsive td {
+  padding: var(--cell-pad-y) var(--cell-pad-x);
+  line-height: 1.2 ;
+  vertical-align: middle;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;          /* нужно для ellipsis */
+  font-size: inherit;
+  font-weight: normal;
+}
+
+/* === Приоритет сжатия колонок ===
+   1) Первый столбец «защищён»: имеет фиксированный минимум и не должен схлопываться.
+   2) Средние столбцы сжимаются первыми (через max-width).
+   3) Последний столбец (Действия) узкий.
+*/
+
+/* 1) Первый столбец — фиксированный минимум (защищён) */
+.table-responsive th:first-child,
+.table-responsive td:first-child {
+  width: var(--first-col-w);      
+  min-width: var(--first-col-w);
+  max-width: var(--first-col-w-max);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 2) Средние столбцы: можно сжимать первыми
+      max-width ограничивает их долю, заставляя «сдаваться» раньше первого столбца */
+.table-responsive th:not(:first-child):not(:last-child),
+.table-responsive td:not(:first-child):not(:last-child) {
+  /* разумный нижний предел, чтобы совсем не превращались в ноль */
+  min-width: 80px;
+  /* верхний предел по содержимому */
+  max-width: 24ch;
+}
+
+/* 3) Последний столбец (обычно «Действия») — всегда узкий */
+/* Последняя колонка (обычно "Действия") — не схлопывать в ноль */
+.table-responsive table th:last-child,
+.table-responsive table td:last-child {
+  width: 0.1% !important;       /* даём шанс ужаться остальным колонкам */
+  min-width: 120px !important;  
+  white-space: nowrap !important;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* Ссылки/инлайн-элементы не «распирают» колонки */
+.table-responsive td a,
+.table-responsive th a,
+.table-responsive td .truncate,
+.table-responsive th .truncate {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* Аватарки поменьше */
+.circle-photo {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-right: 6px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* Компактные элементы управления внутри таблиц */
+.table-responsive .btn,
+.table-responsive .badge,
+.table-responsive .label {
+  padding: 0.08rem 0.35rem;
+  line-height: 1;
+  font-size: 0.575rem;
+  white-space: nowrap;
+}
+
+.table-responsive .form-control,
+.table-responsive select,
+.table-responsive input[type="text"],
+.table-responsive input[type="number"] {
+  height: 1.6rem;
+  padding: 0.1rem 0.3rem;
+  line-height: 1.1;
+  font-size: 0.575rem;
+  min-width: 0;
+}
+
+/* Пагинация — компакт */
+.table-pagination {
+  margin-top: 6px;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  font-size: 0.75rem;
+}
+.table-pagination button {
+  border: 1px solid #ccc;
+  background: #fff;
+  padding: 2px 6px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.table-pagination button.active {
+  background: #007bff;
+  color: #fff;
+  border-color: #007bff;
+}
+.table-pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Утилиты */
+.table-responsive th.wrap,
+.table-responsive td.wrap {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+.table-responsive th.fit,
+.table-responsive td.fit {
+  width: 0.1%;
+  max-width: 1px;
+}
+
+.table-responsive img.toggle-icon {
+  width: 19px; 
+  height: 19px;
+}
+
+/* Ячейка с тегами — разрешаем перенос и красивую раскладку */
+.tags-cell {
+  white-space: normal;         /* теги могут переноситься на новую строку */
+}
+
+.tags-cell .tag-badge,
+.tags-cell .badge {
+  display: inline-flex;
+  align-items: center;
+
+  font-size: 0.9rem;
+  line-height: 1.15;
+  padding: 0.22rem 0.55rem;
+  border-radius: 0.75rem;
+
+  margin-right: 0.25rem;
+  margin-bottom: 0.25rem;
+
+  background-color: #e0e0e0; /* светло-серый фон */
+  color: #2b2b2b;            /* тёмно-серый текст */
+  font-weight: normal;       /* убираем жирность */
+}
+
+
+.h1-tools {
+  float: right; /* шестерёнка справа от заголовка */
+  margin-left: 1600px;
+  cursor: pointer;
+  color: #888;
+}
+
+.h1-tools .col-toggle-btn i {
+  font-size: 1.3rem;
+  transition: color 0.2s;
+}
+
+.h1-tools .col-toggle-btn:hover i {
+  color: #444;
+}
+
+.col-toggle-btn {
+  cursor: pointer;
+  color: #888;
+  font-size: 1.4rem;
+  transition: color 0.2s;
+}
+
+.col-toggle-btn:hover {
+  color: #444;
+}
+
+
+.col-toggle-menu {
+  display: none;
+  position: absolute;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 10px 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  min-width: 240px;
+  max-height: 320px;
+  overflow-y: auto;
+  z-index: 5000;
+}
+
+.col-toggle-menu strong {
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.col-toggle-menu .form-check {
+  margin-bottom: 6px;
+}
+
+.col-toggle-menu .form-check-input {
+  transform: scale(1.3);
+  margin-right: 8px;
+}
+
+.col-toggle-menu .form-check-label {
+  font-size: 0.95rem;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+
+.table-responsive .delete-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+
+  font-size: 1rem;      /* такой же размер, как у текста в ячейке */
+  line-height: 1;
+}
+
+.table-responsive .delete-btn:hover {
+  color: #b52b27;       /* при наведении можно подсветить */
+}
+
+.table-responsive .badge {
+  font-size: 0.95rem;   /* больше, чем дефолтные 0.75rem */
+  padding: 0.35rem 0.6rem; /* чуть больше отступы */
+  border-radius: 0.5rem;   /* скругление аккуратнее */
+  line-height: 1.2;
+}
+
+/* Базовая настройка бейджей */
+.badge {
+  font-weight: 400;          /* без жирного */
+  line-height: 1;         /* компактная высота */
+  padding: 0.1rem 0.1rem;   /* аккуратнее по габаритам */
+  color: #111 !important;    /* чёрный текст */
+  border: 1px solid transparent;
+  border-radius: 0.35rem;
+}
+
+/* Мягкие, но различимые цвета */
+.badge-info {
+  background-color: #d6e9ff !important;  /* мягкий голубой */
+  border-color:     #b9d8ff !important;
+}
+
+.badge-primary {
+  background-color: #dde3ff !important;  /* мягкий индиго/синий */
+  border-color:     #c6d0ff !important;
+}
+
+.badge-success {
+  background-color: #dff3e4 !important;  /* мягкий зелёный */
+  border-color:     #c7e6cf !important;
+}
+
+.badge-danger {
+  background-color: #ffe0e5 !important;  /* мягкий красный/розовый */
+  border-color:     #ffc5cd !important;
+}
+
+/* Компактные бейджи для таблиц */
+.table .badge,
+table .badge {
+  font-size: 16px;           /* меньше шрифт */
+  line-height: 1;            /* плотная высота строки */
+  padding: 0.05rem 0.35rem;  /* тонкие поля */
+  border-radius: 0.25rem;
+  font-weight: 400;
+  vertical-align: middle;    /* не тянет ячейку по высоте */
+  color: #111 !important;
+  border: 1px solid transparent;
+}
+
+/* Мягкие, но различимые цвета */
+.table .badge-info,
+table .badge-info {
+  background-color: #d6e9ff !important;
+  border-color:     #b9d8ff !important;
+}
+
+.table .badge-primary,
+table .badge-primary {
+  background-color: #dde3ff !important;
+  border-color:     #c6d0ff !important;
+}
+
+.table .badge-success,
+table .badge-success {
+  background-color: #dff3e4 !important;
+  border-color:     #c7e6cf !important;
+}
+
+.table .badge-danger,
+table .badge-danger {
+  background-color: #ffe0e5 !important;
+  border-color:     #ffc5cd !important;
+}
+
+/* (опционально) сделаем строки таблицы компактнее */
+.table td,
+.table th,
+table td,
+table th {
+  padding: 0.16rem 0.5rem;   /* если нужно ещё плотнее */
+}
+
+
+/* Уменьшенный столбец состояния */
+.col-status {
+  width: 25px !important;
+  min-width: 25px !important;   /* перекрываем глобальное ограничение 80px */
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Маленький кружок */
+.status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.status-dot.active {
+  background-color: #28a745; /* зелёный */
+}
+
+.status-dot.inactive {
+  background-color: #9fa1a3; /* серый */
+}
+
+.status-dot.green{background-color:#28a745;}
+.status-dot.blue{background-color:#17a2b8;}
+.status-dot.gray{background-color:#9fa1a3;}
+.status-dot.red{background-color:#dc3545;}
+
+/* Увеличенный шрифт для селектов целей (справа) */
+#targets-container select.form-control {
+  font-size: 14px !important;
+  height: auto !important;
+  min-height: 36px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+
+.status-dot.red { background-color: #dc3545; }
+
+
+
+
+
+/* ==== Расширенная пагинация ==== */
+.table-pagination-extended {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  flex-wrap: nowrap; /* не переносим строки */
+  gap: 10px;
+  white-space: nowrap; /* предотвращает перенос текста */
+}
+
+/* Левая часть — выбор количества */
+.table-pagination-extended .pagination-left {
+  flex: 0 0 auto;
+  text-align: left;
+}
+
+/* Центр — строго по центру страницы */
+.table-pagination-extended .pagination-center {
+  flex: 1 1 auto;
+  text-align: center;
+}
+
+/* Правая часть — диапазон элементов */
+.table-pagination-extended .pagination-right {
+  flex: 0 0 auto;
+  text-align: right;
+  color: #555;
+}
+
+/* Селект "Показывать по" */
+.table-pagination-extended select.rows-per-page {
+  padding: 2px 6px;
+  font-size: 0.85rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: white;
+}
+
+/* Кнопки страниц */
+.table-pagination-extended button {
+  border: 1px solid #ccc;
+  background: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin: 0 2px;
+  transition: all 0.2s;
+  font-size: 0.85rem;
+}
+
+.table-pagination-extended button.active {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.table-pagination-extended button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.table-pagination-extended .dots {
+  display: inline-block;
+  padding: 0 4px;
+  color: #888;
+}
+
+/* Поддержка мобильного — перенос только при узком экране */
+@media (max-width: 768px) {
+  .table-pagination-extended {
+    flex-wrap: wrap;
+    text-align: center;
+    justify-content: center;
+    row-gap: 6px;
+  }
+
+  .table-pagination-extended .pagination-left,
+  .table-pagination-extended .pagination-center,
+  .table-pagination-extended .pagination-right {
+    flex: 1 1 100%;
+    text-align: center;
+  }
+}
+

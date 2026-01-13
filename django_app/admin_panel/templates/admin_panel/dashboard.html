@@ -1,0 +1,72 @@
+{% extends "adminlte/base.html" %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <h1 class="mb-4">Панель управления</h1>
+    <div class="row">
+
+      {% if role == "moderator" %}
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-info">
+            <div class="inner"><h3>Плагины</h3><p>Управление скриптами</p></div>
+            <div class="icon"><i class="fas fa-plug"></i></div>
+            <a href="{% url 'admin_panel:plugins_page' %}" class="small-box-footer">Перейти <i class="fas fa-arrow-circle-right"></i></a>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-warning">
+            <div class="inner"><h3>Справочники</h3><p>Базовые данные</p></div>
+            <div class="icon"><i class="fas fa-book"></i></div>
+            <a href="{% url 'admin_panel:directories_page' %}" class="small-box-footer">Перейти <i class="fas fa-arrow-circle-right"></i></a>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-success">
+            <div class="inner"><h3>Статистика</h3><p>Аналитика проектов</p></div>
+            <div class="icon"><i class="fas fa-chart-bar"></i></div>
+            <a href="#" class="small-box-footer">Перейти <i class="fas fa-arrow-circle-right"></i></a>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-danger">
+            <div class="inner"><h3>Логи</h3><p>События системы</p></div>
+            <div class="icon"><i class="fas fa-clipboard-list"></i></div>
+            <a href="#" class="small-box-footer">Перейти <i class="fas fa-arrow-circle-right"></i></a>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-primary">
+            <div class="inner"><h3>Вебсайт</h3><p>Настройки сайта</p></div>
+            <div class="icon"><i class="fas fa-globe"></i></div>
+            <a href="#" class="small-box-footer">Перейти <i class="fas fa-arrow-circle-right"></i></a>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-secondary">
+            <div class="inner"><h3>Android</h3><p>Мобильное приложение</p></div>
+            <div class="icon"><i class="fab fa-android"></i></div>
+            <a href="#" class="small-box-footer">Перейти <i class="fas fa-arrow-circle-right"></i></a>
+          </div>
+        </div>
+
+      {% elif role == "advertiser" %}
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-info">
+            <div class="inner"><h3>Реклама</h3><p>Управление кампаниями</p></div>
+            <div class="icon"><i class="fas fa-bullhorn"></i></div>
+            <a href="#" class="small-box-footer">Перейти <i class="fas fa-arrow-circle-right"></i></a>
+          </div>
+        </div>
+      {% endif %}
+
+    </div>
+  </div>
+</section>
+
+{% endblock %}

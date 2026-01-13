@@ -1,0 +1,534 @@
+{% extends "adminlte/base.html" %}
+{% load static %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+
+    <!-- ===== Заголовок ===== -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <!-- слева: заголовок + сохранить/отмена -->
+      <div class="d-flex align-items-center">
+        <h1 class="mb-0 mr-3">Добавить канал</h1>
+        <div class="btn-toolbar" role="toolbar">
+          <button type="submit" form="addGroupForm" class="btn btn-success mr-2">Сохранить в БД</button>
+          <a href="{% url 'admin_panel:entities_page' %}" class="btn btn-secondary">Отмена</a>
+        </div>
+      </div>
+    </div>
+
+    <form method="post" id="addGroupForm" enctype="multipart/form-data"
+          action="{% url 'admin_panel:entities_add' %}">
+      {% csrf_token %}
+
+      <!-- Основная информация -->
+      <div class="bordered-box p-3 bg-white rounded mb-4">
+        <h4 class="mb-3">Основная информация</h4>
+        
+        <!-- Ссылка на вступление -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Ссылка на вступление</div>
+          <div class="right d-flex align-items-center" style="gap:10px;">
+            <input type="text" name="link" id="link" class="form-control" style="min-width: 300px; max-width:500px;"
+                   placeholder="Никнейм или url канала-группы">
+            <button type="button" class="btn btn-outline-secondary" id="searchBtn">Поиск</button>
+            <button type="button" class="btn btn-outline-secondary" id="openLinkBtn">
+              <img src="{% static 'admin_panel/img/search.png' %}" alt="Открыть" class="icon-16">
+            </button>
+          </div>
+        </div>
+
+
+        <!-- Телеграм ID -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Телеграм ID</div>
+          <div class="right">
+            <input type="number" step="1" name="telegram_id" id="telegram_id" style="min-width:500px; max-width:600px;" class="form-control" required>
+          </div>
+        </div>
+
+        <!-- Название канала-группы -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Название канала-группы</div>
+          <div class="right">
+            <input type="text" name="name" id="name" class="form-control" style="min-width:500px; max-width:600px;"
+                   required>
+          </div>
+        </div>
+        
+        <!-- Картинка -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Картинка</div>
+          <div class="right">
+            <div class="image-upload" style="max-width:250px;">
+              <input type="file" name="photo" id="photo" class="d-none" accept="image/*">
+              <div id="preview" class="preview-box d-flex align-items-center justify-content-center" style="height:140px; border:1px solid #ddd; border-radius:4px;">
+                <span class="text-muted">Нет изображения</span>
+              </div>
+              <div class="mt-2 d-flex" style="gap:8px;">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="pickPhotoBtn">Загрузить</button>
+                <button type="button" class="btn btn-sm btn-outline-danger" id="clearPhotoBtn" disabled>Очистить</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Информация о канале-группе -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Информация о канале-группе</div>
+          <div class="right">
+            <textarea name="description" id="description" class="form-control" rows="4"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Основные темы группы -->
+      <div class="bordered-box p-3 bg-white rounded mb-4">
+        <h4 class="mb-3">Основные темы группы</h4>
+        
+        <div id="category-themes-container">
+          <!-- Сюда будут добавляться выбранные категории -->
+        </div>
+        
+        <div class="form-row">
+          <div class="left" style="width:220px;"></div>
+          <div class="right">
+            <button type="button" class="btn btn-primary" id="addCategoryThemeBtn">
+              Добавить тематику
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Служебная информация -->
+      <div class="bordered-box p-3 bg-white rounded mb-4">
+        <h4 class="mb-3">Служебная информация</h4>
+        
+        <!-- Страна -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Страна</div>
+          <div class="right">
+            <select name="country" id="country" class="form-control">
+              <option value="">Выберите страну из списка</option>
+              {% for c in countries %}
+                <option value="{{ c.name }}">{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Категория -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Категория</div>
+          <div class="right">
+            <select name="category" id="category" class="form-control">
+              <option value="">Выберите категорию из списка</option>
+              {% for c in categories %}
+                <option value="{{ c.name }}">{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Владелец -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Владелец</div>
+          <div class="right">
+            <select name="owner" id="owner" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for o in owners %}
+                <option value="{{ o }}">{{ o }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Тип -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Тип</div>
+          <div class="right">
+            <select name="destination_type" id="destination_type" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for d in destination_types %}
+                <option value="{{ d }}">{{ d }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Порядок сортировки -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Порядок сортировки</div>
+          <div class="right">
+            <input type="number" name="order" id="order" class="form-control">
+          </div>
+        </div>
+      </div>
+
+      <!-- Добавление тегов -->
+      <div class="bordered-box p-3 bg-white rounded mb-4">
+        <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;">Префикс</div>
+          <div class="right d-flex align-items-center" style="gap:16px;">
+            <input type="text" name="tags" id="tags" class="form-control flex-grow-1"
+                   placeholder="Введите теги через запятую">
+            
+            <div class="d-flex align-items-center" style="flex-shrink:0;">
+              <span class="mr-2">Включить:</span>
+              <label class="switch switch-blue mb-0">
+                <input type="checkbox" id="toggle-tags">
+                <span class="slider round"></span>
+              </label>
+            </div>
+          </div>
+          <input type="hidden" name="is_add_tags" id="is_add_tags" value="0">
+        </div>
+      </div>
+
+      <!-- Добавление подписи -->
+      <div class="bordered-box p-3 bg-white rounded mb-4">
+        <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;">Текст-суффикс</div>
+          <div class="right d-flex align-items-center" style="gap:16px;">
+            <textarea name="text_suffix" id="text_suffix" class="form-control flex-grow-1" rows="3"
+                      placeholder="Например:&#10;— Подпишись: @mychannel&#10;— Реклама: @ads_contact"></textarea>
+            
+            <div class="d-flex align-items-center" style="flex-shrink:0;">
+              <span class="mr-2">Включить:</span>
+              <label class="switch switch-blue mb-0">
+                <input type="checkbox" id="toggle-suffix">
+                <span class="slider round"></span>
+              </label>
+            </div>
+          </div>
+          <input type="hidden" name="is_add_suffix" id="is_add_suffix" value="0">
+        </div>
+      </div>
+
+    </form>
+
+  </div>
+</section>
+
+<style>
+  .bordered-box { border:1px solid #e0e0e0; }
+  .form-row { display:flex; align-items:center; }
+  .form-row .left { font-weight:600; color:#444; }
+  .form-row .right { flex:1; }
+</style>
+
+<script>
+(function () {
+  const photoInput = document.getElementById('photo');
+  const previewBox = document.getElementById('preview');
+  const pickBtn    = document.getElementById('pickPhotoBtn');
+  const clearBtn   = document.getElementById('clearPhotoBtn');
+
+  const PARSER_URL = (window.API && window.API.PARSER) || "/api/parse_channel";
+
+  // Управление переключателями
+  const toggleTags = document.getElementById("toggle-tags");
+  const hiddenTags = document.getElementById("is_add_tags");
+  const toggleSuffix = document.getElementById("toggle-suffix");
+  const hiddenSuffix = document.getElementById("is_add_suffix");
+
+  if (toggleTags && hiddenTags) {
+    toggleTags.addEventListener("change", () => {
+      hiddenTags.value = toggleTags.checked ? "1" : "0";
+    });
+  }
+
+  if (toggleSuffix && hiddenSuffix) {
+    toggleSuffix.addEventListener("change", () => {
+      hiddenSuffix.value = toggleSuffix.checked ? "1" : "0";
+    });
+  }
+
+  // Управление изображением
+  function showPreview(src){
+    previewBox.innerHTML = `<img src="${src}" alt="preview" style="width:100%;height:100%;object-fit:cover;">`;
+    clearBtn.disabled = false;
+  }
+  function clearPreview(){
+    if (photoInput) photoInput.value = '';
+    previewBox.innerHTML = `<span class="text-muted">Нет изображения</span>`;
+    clearBtn.disabled = true;
+  }
+  if (photoInput) {
+    photoInput.addEventListener('change', ev => {
+      const f = ev.target.files && ev.target.files[0];
+      if (!f) return clearPreview();
+      const r = new FileReader();
+      r.onload = e2 => showPreview(e2.target.result);
+      r.readAsDataURL(f);
+    });
+  }
+  if (pickBtn)  pickBtn.addEventListener('click', () => photoInput.click());
+  if (clearBtn) clearBtn.addEventListener('click', clearPreview);
+  previewBox.addEventListener('click', () => photoInput.click());
+
+  // Обработка кнопок у поля ссылки
+  const searchBtn = document.getElementById('searchBtn');
+  const openLinkBtn = document.getElementById('openLinkBtn');
+  const linkInput = document.getElementById('link');
+
+  // Кнопка "Поиск" - автозаполнение
+  if (searchBtn && linkInput) {
+    searchBtn.addEventListener('click', async () => {
+      const link = linkInput.value.trim();
+      if (!link) return alert("Введите ссылку для поиска");
+
+      try {
+        const resp = await fetch(PARSER_URL, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ link })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || data.error || "Ошибка API");
+
+        document.getElementById("telegram_id").value = data.telegram_id ?? data.tg_id ?? "";
+        document.getElementById("name").value = data.name || "";
+        if (data.description) {
+          document.getElementById("description").value = data.description;
+        }
+        if (data.country) setSelectByText("country", data.country);
+        if (data.category) setSelectByText("category", data.category);
+        if (data.tags) document.getElementById("tags").value = data.tags;
+
+        // делаем поля readOnly
+        linkInput.readOnly = true;
+        document.getElementById("telegram_id").readOnly = true;
+        document.getElementById("description").readOnly = true;
+        document.getElementById("name").readOnly = true;
+        pickBtn.disabled = true;
+
+        if (data.photo) {
+          const photoUrl = data.photo;
+          showPreview(photoUrl);
+
+          try {
+            const imgResp = await fetch(photoUrl);
+            if (imgResp.ok) {
+              const rawCT = (imgResp.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+              if (rawCT.startsWith("image/")) {
+                const buf = await imgResp.arrayBuffer();
+                const ext = (rawCT.split("/")[1] || "jpg").replace(/[^a-z0-9]/gi, "");
+                const file = new File([buf], `autofill.${ext}`, { type: rawCT });
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                photoInput.files = dt.files;
+
+                // блокируем управление
+                pickBtn.style.display = "none";
+                clearBtn.style.display = "none";
+                previewBox.style.cursor = "default";
+                previewBox.onclick = null;
+              }
+            }
+          } catch (err) {
+            console.warn("Ошибка загрузки фото:", err);
+          }
+        } else {
+          clearPreview();
+        }
+
+      } catch (e) {
+        alert("Автозаполнение не удалось: " + e.message);
+      }
+    });
+  }
+
+  // Кнопка с иконкой - открытие ссылки
+  if (openLinkBtn && linkInput) {
+    openLinkBtn.addEventListener('click', () => {
+      const link = linkInput.value.trim();
+      if (link) {
+        let url = link;
+        if (!url.startsWith('http')) {
+          url = 'https://t.me/' + link.replace('@', '');
+        }
+        window.open(url, '_blank');
+      } else {
+        alert('Введите ссылку для открытия');
+      }
+    });
+  }
+
+  function setSelectByText(selId, text) {
+    const sel = document.getElementById(selId);
+    const val = (text||"").trim().toLowerCase();
+    if (!sel || !val) return;
+    for (const opt of sel.options) {
+      if (opt.value.trim().toLowerCase() === val || opt.textContent.trim().toLowerCase() === val) {
+        opt.selected = true; return;
+      }
+    }
+    const opt = document.createElement('option');
+    opt.value = text; opt.textContent = text; opt.selected = true;
+    sel.insertBefore(opt, sel.firstChild);
+  }
+})();
+</script>
+
+<script>
+// Управление темами категорий
+document.addEventListener("DOMContentLoaded", () => {
+  const addCategoryThemeBtn = document.getElementById('addCategoryThemeBtn');
+  const categoryThemesContainer = document.getElementById('category-themes-container');
+  const usedCategoryIds = new Set();
+
+  // Функция для получения ID категории по названию
+  function getCategoryIdByName(categoryName) {
+    const categorySelect = document.getElementById('category');
+    const option = Array.from(categorySelect.options).find(opt => opt.text === categoryName);
+    return option ? option.value : null;
+  }
+
+  // Функция для показа списка категорий
+  function showCategorySelector() {
+    // Создаем модальное окно
+    const modal = document.createElement('div');
+    modal.className = 'category-selector-modal';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    `;
+
+    const content = document.createElement('div');
+    content.className = 'category-selector-content';
+    content.style.cssText = `
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 400px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    `;
+
+    const title = document.createElement('h5');
+    title.textContent = 'Выберите категорию';
+    content.appendChild(title);
+
+    // Получаем список категорий с ID
+    const categorySelect = document.getElementById('category');
+    const categories = Array.from(categorySelect.options)
+      .filter(opt => opt.value && opt.value !== '')
+      .map(opt => ({ 
+        id: opt.value, // Это числовой ID
+        name: opt.text 
+      }));
+
+    let hasAvailableCategories = false;
+
+    categories.forEach(category => {
+      if (usedCategoryIds.has(category.id)) return;
+      hasAvailableCategories = true;
+
+      const categoryItem = document.createElement('div');
+      categoryItem.className = 'category-item';
+      categoryItem.style.cssText = `
+        padding: 10px;
+        margin: 5px 0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      `;
+      categoryItem.textContent = category.name;
+      
+      categoryItem.addEventListener('mouseenter', () => {
+        categoryItem.style.backgroundColor = '#f8f9fa';
+      });
+      categoryItem.addEventListener('mouseleave', () => {
+        categoryItem.style.backgroundColor = 'white';
+      });
+      
+      categoryItem.addEventListener('click', () => {
+        addCategoryTheme(category.id, category.name);
+        modal.remove();
+      });
+      
+      content.appendChild(categoryItem);
+    });
+
+    if (!hasAvailableCategories) {
+      const noCategories = document.createElement('div');
+      noCategories.textContent = 'Все категории уже добавлены';
+      noCategories.style.padding = '10px';
+      noCategories.style.color = '#6c757d';
+      content.appendChild(noCategories);
+    }
+
+    // Кнопка закрытия
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Закрыть';
+    closeBtn.className = 'btn btn-secondary mt-3';
+    closeBtn.addEventListener('click', () => modal.remove());
+    content.appendChild(closeBtn);
+
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+
+    // Закрытие по клику вне контента
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    });
+  }
+
+  // Функция добавления темы категории
+  function addCategoryTheme(categoryId, categoryName) {
+    if (usedCategoryIds.has(categoryId)) {
+      console.log('Category already added:', categoryId);
+      return;
+    }
+
+    const row = document.createElement('div');
+    row.className = 'form-row mb-3 category-theme-row';
+    row.innerHTML = `
+      <div class="left" style="width:220px;">
+        <span class="category-name">${categoryName}</span>
+        <input type="hidden" name="category_theme_id_${categoryId}" value="${categoryId}">
+      </div>
+      <div class="right d-flex align-items-center" style="gap:10px;">
+        <input type="text" name="category_theme_url_${categoryId}" 
+               class="form-control flex-grow-1" 
+               placeholder="URL темы группы" required>
+        <button type="button" class="btn btn-sm btn-outline-danger remove-category-theme" 
+                data-category-id="${categoryId}">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+    `;
+
+    categoryThemesContainer.appendChild(row);
+    usedCategoryIds.add(categoryId);
+    console.log('Added category:', categoryId, categoryName);
+
+    // Добавляем обработчик удаления
+    const removeBtn = row.querySelector('.remove-category-theme');
+    removeBtn.addEventListener('click', function() {
+      const catId = this.getAttribute('data-category-id');
+      usedCategoryIds.delete(catId);
+      row.remove();
+      console.log('Removed category:', catId);
+    });
+  }
+
+  // Обработчик кнопки добавления тематики
+  if (addCategoryThemeBtn) {
+    addCategoryThemeBtn.addEventListener('click', showCategorySelector);
+  }
+});
+</script>
+{% endblock %}

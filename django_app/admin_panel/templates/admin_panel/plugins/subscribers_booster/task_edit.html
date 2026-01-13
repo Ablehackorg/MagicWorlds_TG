@@ -1,0 +1,260 @@
+{% extends "adminlte/base.html" %}
+{% load static %}
+{% load filters %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+
+    <!-- ===== Заголовок ===== -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h1 class="mb-0">{{ page_title }}</h1>
+
+      <div class="d-flex align-items-center" style="gap:12px;">
+        <span>Выкл</span>
+        <label class="switch switch-blue mb-0">
+          <input type="checkbox" id="toggle-active" {% if task.is_active %}checked{% endif %}>
+          <span class="slider round"></span>
+        </label>
+        <span>Вкл</span>
+        <input type="hidden" name="is_active" id="is_active" form="main-form" value="{% if task.is_active %}1{% else %}0{% endif %}">
+
+        {% if task %}
+        <form method="post" action="{% url 'admin_panel:subscribers_task_delete' task.id %}"
+              onsubmit="return confirm('Удалить задачу #{{ task.id }}?');">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Удалить</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ===== Форма ===== -->
+    <form method="post" id="main-form">
+      {% csrf_token %}
+      <div class="task-form bordered-box p-3 bg-white rounded mb-4">
+
+        <!-- Канал-группа -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Канал-группа</div>
+          <div class="right" style="display: flex; align-items: center; gap: 8px;">
+            <select name="target_id" class="form-control" style="min-width: 600px; max-width:800px;" required>
+              <option value="">Выберите канал из списка</option>
+              {% for e in entities %}
+                <option value="{{ e.id }}" {% if task and task.target_id == e.id %}selected{% endif %}>
+                  {{ e.name }}
+                </option>
+              {% endfor %}
+            </select>
+            <button type="button" class="btn btn-outline-secondary" id="openLinkBtn">
+              <img src="{% static 'admin_panel/img/search.png' %}" alt="Открыть" class="icon-16">
+            </button>
+          </div>
+        </div>
+
+
+        <!-- Проверка -->
+        <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;">Проверять каждые</div>
+          <div class="right d-flex flex-wrap align-items-center" style="gap:16px;">
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="check_interval" value="30"
+                     {% if not task or task.check_interval == 30 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">30 мин</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="check_interval" value="60"
+                     {% if task and task.check_interval == 60 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">1 час</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="check_interval" value="120"
+                     {% if task and task.check_interval == 120 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">2 час</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="check_interval" value="360"
+                     {% if task and task.check_interval == 360 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">6 час</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="check_interval" value="720"
+                     {% if task and task.check_interval == 720 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">12 час</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="check_interval" value="1440"
+                     {% if task and task.check_interval == 1440 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">24 час</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Учёт -->
+        <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;">Учитывать</div>
+          <div class="right d-flex flex-wrap align-items-center" style="gap:16px;">
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="tracking_mode" value="unsubs"
+                     {% if not task or task.tracking_mode == "unsubs" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Только отписки</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="tracking_mode" value="total"
+                     {% if task and task.tracking_mode == "total" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Общее количество (всего)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Ограничитель -->
+        <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;">Ограничитель</div>
+          <div class="right d-flex align-items-center" style="gap:20px;">
+            <input type="number" name="max_subscribers" min="0" value="{{ task.max_subscribers|default:50 }}" 
+                   class="form-control" style="width:120px;">
+            <span>подписчиков</span>
+
+            <div class="d-flex align-items-center" style="gap:10px;">
+              <span>Оповещение</span>
+              <span>Нет</span>
+              <label class="switch switch-green mb-0">
+                <input type="hidden" name="notify_on_exceed" value="0">
+                <input type="checkbox" name="notify_on_exceed" value="1"
+                       {% if not task or task.notify_on_exceed %}checked{% endif %}>
+                <span class="slider round"></span>
+              </label>
+              <span>Да</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Кнопки -->
+        <div class="form-row mt-4">
+          <div class="left"></div>
+          <div class="right d-flex" style="gap:12px;">
+            <button type="submit" class="btn btn-success">Сохранить в БД</button>
+            <a href="{% url 'admin_panel:subscribers_tasks_view' %}" class="btn btn-secondary">Отмена</a>
+          </div>
+        </div>
+
+      </div>
+    </form>
+
+    <!-- ===== Таблица быстрого доступа ===== -->
+    <div class="bordered-box p-3 bg-white rounded">
+      <h3 class="mb-3">Все задачи нормализатора подписчиков</h3>
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover" data-sortable data-paginate>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Канал-группа</th>
+              <th>Статус</th>
+              <th>Проверка</th>
+              <th>Учёт</th>
+              <th>За неделю</th>
+              <th>За месяц</th>
+              <th>Позавчера</th>
+              <th>Вчера</th>
+              <th>Сегодня</th>
+              <th>Расход</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in all_tasks %}
+            <tr>
+              <td class="text-center">{{ t.id }}</td>
+              <td>{{ t.target.name|default:"—" }}</td>
+              <td class="text-center">
+                {% if t.is_active %}
+                  <span class="status-dot active" title="Активна"></span>
+                {% else %}
+                  <span class="status-dot gray" title="Неактивна"></span>
+                {% endif %}
+              </td>
+
+              <!-- Проверка -->
+              <td class="text-center">{{ t.check_interval|interval_display }}</td>
+
+              <!-- Учёт -->
+              <td class="text-center">
+                {% if t.tracking_mode == "unsubs" %}Отписки{% else %}Всего{% endif %}
+              </td>
+
+              <!-- За неделю -->
+              <td class="text-center">{{ t.weekly_total|signed_delta_html }}</td>
+
+              <!-- За месяц -->
+              <td class="text-center">{{ t.monthly_total|signed_delta_html }}</td>
+
+              <!-- Подписчики по дням -->
+              <td class="text-center">{{ t.day_before_yesterday_value }}</td>
+              <td class="text-center">{{ t.yesterday_value }}</td>
+              <td class="text-center">{{ t.today_value }}</td>
+
+              <td class="text-center">{{ t.monthly_expense_value|floatformat:2 }}</td>
+
+              <td class="text-center text-nowrap">
+                <a href="{% url 'admin_panel:subscribers_task_edit' t.id %}" title="Редактировать">
+                  <img src="{% static 'admin_panel/img/edit.png' %}" alt="Редактировать" class="icon-16 mr-2">
+                </a>
+                <a href="{% url 'admin_panel:subscribers_task_delete' t.id %}" title="Удалить">
+                  <img src="{% static 'admin_panel/img/delete.png' %}" alt="Удалить" class="icon-16">
+                </a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="12" class="text-center text-muted">Задачи отсутствуют</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const toggle = document.getElementById("toggle-active");
+  const hidden = document.getElementById("is_active");
+  if (toggle && hidden) toggle.addEventListener("change", () => hidden.value = toggle.checked ? "1" : "0");
+});
+</script>
+<script>
+  const openLinkBtn = document.getElementById('openLinkBtn')
+  // Кнопка с иконкой - открытие ссылки
+  if (openLinkBtn) {
+    openLinkBtn.addEventListener('click', () => {
+      console.log('{{ target.link }}')
+      const link = '{{ target.link }}'
+      if (link) {
+        let url = link;
+        if (!url.startsWith('http')) {
+          url = 'https://t.me/' + link.replace('@', '');
+        }
+        window.open(url, '_blank');
+      } else {
+        alert('Ссылка некорректная');
+      }
+    });
+  }
+</script>
+
+<style>
+  .form-row { display:flex; align-items:center; }
+  .form-row .left { font-weight:600; color:#444; }
+  .form-row .right { flex:1; }
+  .dot { width:12px; height:12px; border-radius:50%; border:2px solid #007bff; display:inline-block; position:relative; }
+  .day-label { font-size:14px; color:#333; }
+</style>
+{% endblock %}

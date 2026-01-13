@@ -1,0 +1,355 @@
+{% extends "adminlte/base.html" %}
+{% block body_class %}page-scroll{% endblock %}
+{% load static %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+
+    <!-- ======= Верхняя панель ======= -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div class="d-flex align-items-center">
+        <h1 class="mb-0 mr-3">
+          {% if is_edit %}Редактирование заказа{% else %}Создание заказа{% endif %}
+        </h1>
+        <div class="btn-toolbar" role="toolbar">
+          <button form="main-form" type="submit" class="btn btn-success mr-2">Сохранить</button>
+          <a href="{% url 'admin_panel:ads_tasks_view' %}" class="btn btn-secondary mr-2">Отмена</a>
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center" style="gap:12px; margin-left: auto;">
+        <span>Выкл</span>
+        <label class="switch switch-blue mb-0">
+          <input type="checkbox" id="toggle-active" {% if task.is_active %}checked{% endif %}>
+          <span class="slider round"></span>
+        </label>
+        <span>Вкл</span>
+        <input type="hidden" name="is_active" id="is_active" form="main-form" value="{% if task.is_active %}1{% else %}0{% endif %}">
+
+        {% if is_edit %}
+          <form method="post" action="{% url 'admin_panel:ads_task_delete' task.id %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger" onclick="return confirm('Удалить рекламную задачу #{{ task.id }}?')">
+              Удалить
+            </button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <form method="post" id="main-form" enctype="multipart/form-data">
+      {% csrf_token %}
+
+      <!-- === Раздел: Заказчик === -->
+      <div class="section-bar">Информация о заказчике</div>
+      <div class="form-rows">
+        <div class="form-row">
+          <div class="left">Наименование</div>
+          <div class="right"><input type="text" name="name" class="form-control" required value="{{ task.name|default:'' }}"></div>
+        </div>
+
+        <div class="form-row">
+          <div class="left">Статус заказчика</div>
+          <div class="right">
+            <div class="one-line-radios d-flex align-items-center">
+              <label class="circle-day d-flex align-items-center mr-3 mb-0">
+                <input type="radio" name="customer_status" value="new" {% if task.customer_status == "new" %}checked{% endif %}>
+                <span class="dot"></span>
+                <span class="day-label ml-1">Новый</span>
+              </label>
+              <label class="circle-day d-flex align-items-center mb-0">
+                <input type="radio" name="customer_status" value="permanent" {% if task.customer_status == "permanent" %}checked{% endif %}>
+                <span class="dot"></span>
+                <span class="day-label ml-1">Постоянный</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="left">Контакт</div>
+          <div class="right d-flex align-items-center" style="gap:12px;">
+            <div class="d-flex align-items-center" style="flex: 0 0 100px;">
+              <input type="text" name="customer_telegram" class="form-control" placeholder="@username или ID" required value="{{ task.customer_telegram|default:'' }}">
+              <i class="fab fa-telegram ml-2 fa-lg" style="color: #0088cc; flex-shrink: 0;"></i>
+            </div>
+            <div class="d-flex align-items-center" style="flex: 0 0 300px; margin-left: 8px;">
+              <input type="text" name="customer_fullname" class="form-control" placeholder="ФИО" value="{{ task.customer_fullname|default:'' }}">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="left">Уведомлять о постинге</div>
+          <div class="right">
+            <div class="d-flex flex-column" style="gap:8px;">
+              <div class="d-flex align-items-center" style="gap:10px;">
+                <span style="min-width:100px;">Заказчика</span>
+                <span class="text-muted">Нет</span>
+                <label class="switch switch-green mb-0 mx-2">
+                  <input type="checkbox" name="notify_customer" {% if task.notify_customer %}checked{% endif %}>
+                  <span class="slider round"></span>
+                </label>
+                <span class="text-muted">Да</span>
+              </div>
+
+              <div class="d-flex align-items-center" style="gap:10px;">
+                <span style="min-width:100px;">Администратора</span>
+                <span class="text-muted">Нет</span>
+                <label class="switch switch-green mb-0 mx-2">
+                  <input type="checkbox" name="notify_admin" {% if task.notify_admin %}checked{% endif %}>
+                  <span class="slider round"></span>
+                </label>
+                <span class="text-muted">Да</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- === Раздел: Где рекламируем === -->
+      <div class="section-bar">Где рекламируем</div>
+      <div class="form-rows">
+        <div class="form-row">
+          <div class="left">Канал / Группа</div>
+          <div class="right d-flex align-items-center">
+            <select name="target_id" id="target_id" class="form-control" required style="max-width:560px;">
+              <option value="">— выберите канал/группу —</option>
+              {% for e in entities %}
+                <option value="{{ e.id }}" data-type="{{ e.entity_type }}" {% if task.target.id == e.id %}selected{% endif %}>
+                  {{ e.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+      
+      <!-- === Раздел: Рекламный пост === -->
+      <div class="section-bar">Рекламный пост</div>
+      <div class="form-rows">
+        <div class="form-row">
+          <div class="left">Ссылка на рекламный пост</div>
+          <div class="right">
+            <input type="text" name="post_link" class="form-control" placeholder="https://t.me/source/123"
+                   value="{{ task.post_link|default:'' }}" required>
+          </div>
+        </div>
+      </div>
+
+      <!-- === Раздел: Кого рекламируем === -->
+      <div class="section-bar">Кого рекламируем</div>
+      <div class="form-rows">
+        <div class="form-row">
+          <div class="left">Ссылка на объект</div>
+          <div class="right d-flex align-items-center" style="gap:12px;">
+            <input type="text" name="source_link" id="source_link" class="form-control"
+                   placeholder="https://t.me/example или @example"
+                   value="{{ source.link|default:'' }}">
+            <button type="button" id="autoFillSourceBtn" class="btn btn-outline-secondary">Поиск</button>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="left">Telegram ID</div>
+          <div class="right">
+            <input type="number" step="1" name="source_telegram_id" id="source_telegram_id" class="form-control"
+                   value="{{ source.telegram_id|default:'' }}">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="left">Название</div>
+          <div class="right">
+            <input type="text" name="source_name" id="source_name" class="form-control"
+                   value="{{ source.name|default:'' }}">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="left">Описание</div>
+          <div class="right">
+            <textarea name="source_description" id="source_description" class="form-control" rows="3">{{ source.description|default:'' }}</textarea>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="left">Фотография</div>
+          <div class="right">
+            <div class="image-upload" style="max-width:250px;">
+              <input type="file" name="source_photo" id="source_photo" class="d-none" accept="image/*">
+              <div id="source_preview" class="preview-box d-flex align-items-center justify-content-center">
+                {% if source.photo %}
+                  <img src="{{ task.source.photo.url }}" alt="preview" style="width:100%;height:100%;object-fit:cover;">
+                {% else %}
+                  <span class="text-muted">Нет изображения</span>
+                {% endif %}
+              </div>
+              <div class="mt-2 d-flex" style="gap:8px;">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="pickSourcePhotoBtn">Загрузить</button>
+                <button type="button" class="btn btn-sm btn-outline-danger" id="clearSourcePhotoBtn" {% if not task.source.photo %}disabled{% endif %}>Очистить</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- === Раздел: Даты === -->
+      <div class="section-bar">Даты </div>
+      <div class="form-rows">
+        <div class="form-row">
+          <div class="left">Дата заказа</div>
+          <div class="right d-flex align-items-center" style="gap:12px;">
+            <input type="date" name="ordered_date" id="ordered_date" class="form-control compact-date"
+                   value="{{ task.ordered_at|date:'Y-m-d'|default:'' }}">
+            <input type="time" name="ordered_time" id="ordered_time" class="form-control compact-time"
+                   value="{{ task.ordered_at|date:'H:i'|default:'' }}">
+            <button type="button" id="todayBtn" class="btn btn-outline-secondary btn-sm">Сейчас</button>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="left">Дата публикации</div>
+          <div class="right d-flex align-items-center" style="gap:12px;">
+            <input type="date" name="publish_date" id="publish_date" class="form-control publish-date"
+                   value="{{ task.publish_at|date:'Y-m-d'|default:'' }}" required>
+            <input type="time" name="publish_time" id="publish_time" class="form-control publish-time"
+                   value="{{ task.publish_at|date:'H:i'|default:'' }}" required>
+            <button type="button" id="nowPublishBtn" class="btn btn-outline-secondary btn-sm">Сейчас</button>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="left">Оплата</div>
+          <div class="right d-flex align-items-center">
+            <span>Нет</span>
+            <label class="switch switch-green mb-0 mx-2">
+              <input type="checkbox" name="is_paid" {% if task.is_paid %}checked{% endif %}>
+              <span class="slider round"></span>
+            </label>
+            <span>Да</span>
+          </div>
+        </div>
+      </div>
+
+      {% block journal_section %}{% endblock %}
+    </form>
+  </div>
+</section>
+
+<style>
+.section-bar {
+  background:#e9ecef; color:#2e3a46; font-weight:600;
+  padding:8px 12px; margin:14px 0 6px; border-radius:4px;
+  border:1px solid #dee2e6;
+}
+.form-rows {
+  border:1px solid #e9ecef; border-radius:6px; background:#fff; margin-bottom:8px;
+}
+.form-row {
+  display:grid; grid-template-columns:240px 1fr; grid-gap:12px;
+  align-items:center; padding:10px 12px; border-top:1px solid #f2f4f6;
+}
+.form-row:first-child { border-top:0; }
+.form-row .left { font-weight:600; color:#495057; }
+
+/* Увеличиваем маленькие поля и делаем их одинаковыми */
+.form-row .right input[type="text"],
+.form-row .right input[type="number"],
+.form-row .right input[type="date"],
+.form-row .right input[type="time"] {
+  min-width: 280px !important;  /* одинаковый размер для всех маленьких полей */
+  max-width: 400px !important;
+}
+
+/* Сохраняем существующие стили для больших полей */
+.form-row .right textarea.form-control {
+  min-width: 60ch;
+  max-width: 400px;
+}
+
+.form-row .right select.form-control {
+  min-width: 280px;
+  max-width: 560px;
+}
+
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // === серверное время ===
+  const serverNow = new Date("{{ time_now|date:'c' }}");  // ISO-формат от Django
+
+  // тумблер активности
+  const toggle = document.getElementById("toggle-active");
+  const hidden = document.getElementById("is_active");
+  toggle?.addEventListener("change", () => { hidden.value = toggle.checked ? "1" : "0"; });
+
+  // кнопка "сегодня"
+  document.getElementById("todayBtn")?.addEventListener("click", () => {
+    const d = serverNow.toISOString().split("T")[0];
+    const t = serverNow.toTimeString().slice(0,5);
+    document.getElementById("ordered_date").value = d;
+    document.getElementById("ordered_time").value = t;
+  });
+
+  // кнопка "сейчас"
+  document.getElementById("nowPublishBtn")?.addEventListener("click", () => {
+    const d = serverNow.toISOString().split("T")[0];
+    const t = serverNow.toTimeString().slice(0,5);
+    document.querySelector("[name=publish_date]").value = d;
+    document.querySelector("[name=publish_time]").value = t;
+  });
+
+  // фото блока "что рекламируем"
+  const input = document.getElementById("source_photo");
+  const box = document.getElementById("source_preview");
+  const pick = document.getElementById("pickSourcePhotoBtn");
+  const clear = document.getElementById("clearSourcePhotoBtn");
+
+  function showPreview(src){ box.innerHTML = `<img src="${src}" alt="preview">`; clear.disabled = false; }
+  function clearPreview(){ input.value = ''; box.innerHTML = `<span class="text-muted">Нет изображения</span>`; clear.disabled = true; }
+
+  pick?.addEventListener("click", () => input.click());
+  clear?.addEventListener("click", clearPreview);
+  box?.addEventListener("click", () => input.click());
+  input?.addEventListener("change", ev => {
+    const f = ev.target.files[0]; if (!f) return clearPreview();
+    const r = new FileReader(); r.onload = e => showPreview(e.target.result); r.readAsDataURL(f);
+  });
+
+  // автозаполнение "что рекламируем"
+  document.getElementById("autoFillSourceBtn")?.addEventListener("click", async () => {
+    const link = document.getElementById("source_link").value.trim();
+    if (!link) return alert("Введите ссылку для автозаполнения");
+    try {
+      const r = await fetch("/api/parse_channel", {
+        method:"POST", headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({ link })
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || d.error || "Ошибка API");
+      document.getElementById("source_telegram_id").value = d.telegram_id ?? d.tg_id ?? "";
+      document.getElementById("source_name").value = d.name || "";
+      document.getElementById("source_description").value = d.description || "";
+      if (d.photo) {
+        showPreview(d.photo);
+        const resp = await fetch(d.photo);
+        if (resp.ok) {
+          const ct = (resp.headers.get("content-type")||"").split(";")[0].toLowerCase();
+          if (ct.startsWith("image/")) {
+            const buf = await resp.arrayBuffer();
+            const ext = (ct.split("/")[1]||"jpg").replace(/[^a-z0-9]/gi,"");
+            const file = new File([buf],`autofill.${ext}`,{type:ct});
+            const dt = new DataTransfer();
+            dt.items.add(file); input.files = dt.files;
+          }
+        }
+      }
+    } catch(e){ alert("Ошибка автозаполнения: " + e.message); }
+  });
+});
+</script>
+
+{% endblock %}

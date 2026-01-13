@@ -1,0 +1,187 @@
+{% extends "adminlte/base.html" %}
+{% load static %}
+
+{% block title %}Редактировать канал #{{ chan_id }}{% endblock %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <h1 class="mb-4">Редактировать канал #{{ chan_id }}</h1>
+
+    <form method="post" id="editChannelForm" enctype="multipart/form-data">
+      {% csrf_token %}
+
+      <div class="row">
+        <!-- Левая колонка -->
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="telegram_id">Telegram ID</label>
+            <input type="text" id="telegram_id" class="form-control"
+                   value="{{ channel.telegram_id }}" readonly>
+          </div>
+
+          <div class="form-group">
+            <label for="name">Название</label>
+            <input type="text" name="name" id="name" class="form-control"
+                   value="{{ channel.name|default_if_none:'' }}" required>
+          </div>
+
+          <div class="form-group">
+            <label for="description">Описание</label>
+            <textarea name="description" id="description" class="form-control" rows="4">
+              {{ channel.description }}
+            </textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="country">Страна</label>
+            <select name="country" id="country" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for c in countries %}
+                <option value="{{ c.name }}" {% if channel.country and channel.country.name == c.name %}selected{% endif %}>{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="category">Категория</label>
+            <select name="category" id="category" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for c in categories %}
+                <option value="{{ c.name }}" {% if channel.category and channel.category.name == c.name %}selected{% endif %}>{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Правая колонка -->
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="owner">Владелец</label>
+            <select name="owner" id="owner" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for o in owners %}
+                <option value="{{ o }}" {% if channel.owner == o %}selected{% endif %}>{{ o }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="destination_type">Тип</label>
+            <select name="destination_type" id="destination_type" class="form-control">
+              <option value="">— Не выбрано —</option>
+              {% for d in destination_types %}
+                <option value="{{ d }}" {% if channel.destination_type == d %}selected{% endif %}>{{ d }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="tags">Теги (через запятую)</label>
+            <input type="text" name="tags" id="tags" class="form-control"
+                   value="{{ channel.tags|default_if_none:'' }}">
+          </div>
+
+          <div class="form-group">
+            <label for="link">Ссылка</label>
+            <input type="text" name="link" id="link" class="form-control"
+                   value="{{ channel.link|default_if_none:'' }}">
+          </div>
+
+          <!-- Текст-суффикс + переключатель -->
+          <div class="form-group mb-2">
+            <label for="text_suffix">Текст-суффикс (добавляется в конец каждого поста)</label>
+
+            <div class="d-flex align-items-center" style="gap: 6px;">
+              <textarea name="text_suffix" id="text_suffix" class="form-control flex-grow-1" rows="3"
+                        placeholder="Например:&#10;— Подпишись: @mychannel&#10;— Реклама: @ads_contact">{{ channel.text_suffix }}</textarea>
+
+              <!-- кнопки выбора -->
+              <div class="btn-group btn-group-sm" role="group" id="suffix-toggle" style="flex-shrink:0;">
+                <button type="button" class="btn btn-outline-secondary suffix-btn {% if channel.is_add_suffix %}active{% endif %}" 
+                        data-value="1" title="Добавлять суффикс">
+                  <img src="{% static 'admin_panel/img/enable.svg' %}" alt="Вкл" class="icon-16">
+                </button>
+                <button type="button" class="btn btn-outline-secondary suffix-btn {% if not channel.is_add_suffix %}active{% endif %}" 
+                        data-value="0" title="Не добавлять суффикс">
+                  <img src="{% static 'admin_panel/img/disable.svg' %}" alt="Выкл" class="icon-16">
+                </button>
+              </div>
+            </div>
+
+            <input type="hidden" name="is_add_suffix" id="is_add_suffix" value="{% if channel.is_add_suffix %}1{% else %}0{% endif %}">
+          </div>
+
+          <div class="form-group">
+            <label for="photo">Картинка</label>
+            <div class="image-upload" style="max-width:250px;">
+              <input type="file" name="photo" id="photo" class="d-none" accept="image/*">
+              <div id="preview" class="preview-box d-flex align-items-center justify-content-center">
+                {% if channel.photo %}
+                  <img src="{{ channel.photo.url }}" alt="preview" style="width:100%;height:100%;object-fit:cover;">
+                {% else %}
+                  <span class="text-muted">Нет изображения</span>
+                {% endif %}
+              </div>
+              <div class="mt-2 d-flex" style="gap:8px;">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="pickPhotoBtn">Загрузить</button>
+                <button type="button" class="btn btn-sm btn-outline-danger" id="clearPhotoBtn" {% if not channel.photo %}disabled{% endif %}>Очистить</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-success">Сохранить</button>
+      <a href="{% url 'admin_panel:channels_page' %}" class="btn btn-outline-secondary">Отмена</a>
+    </form>
+
+  </div>
+</section>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const hidden = document.getElementById("is_add_suffix");
+  const buttons = document.querySelectorAll("#suffix-toggle .suffix-btn");
+  buttons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      buttons.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      hidden.value = btn.dataset.value;
+    });
+  });
+});
+</script>
+
+<script>
+(function () {
+  const photoInput = document.getElementById('photo');
+  const previewBox = document.getElementById('preview');
+  const pickBtn    = document.getElementById('pickPhotoBtn');
+  const clearBtn   = document.getElementById('clearPhotoBtn');
+
+  function showPreview(src) {
+    previewBox.innerHTML = `<img src="${src}" alt="preview" style="width:100%;height:100%;object-fit:cover;">`;
+    clearBtn.disabled = false;
+  }
+  function clearPreview() {
+    if (photoInput) photoInput.value = '';
+    previewBox.innerHTML = `<span class="text-muted">Нет изображения</span>`;
+    clearBtn.disabled = true;
+  }
+
+  if (photoInput) {
+    photoInput.addEventListener('change', e => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return clearPreview();
+      const r = new FileReader();
+      r.onload = ev => showPreview(ev.target.result);
+      r.readAsDataURL(f);
+    });
+  }
+  if (pickBtn)  pickBtn.addEventListener('click', () => photoInput.click());
+  if (clearBtn) clearBtn.addEventListener('click', clearPreview);
+  previewBox.addEventListener('click', () => photoInput.click());
+})();
+</script>
+{% endblock %}

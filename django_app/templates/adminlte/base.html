@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}Admin Panel{% endblock %}</title>
+  {% load static %}
+  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+
+  <!-- AdminLTE и FontAwesome -->
+  <link rel="stylesheet" href="{% static 'adminlte/plugins/fontawesome-free/css/all.min.css' %}">
+  <link rel="stylesheet" href="{% static 'adminlte/dist/css/adminlte.min.css' %}">
+
+
+  <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
+  <link rel="stylesheet" href="{% static 'css/tables.css' %}">
+  <link rel="stylesheet" href="{% static 'css/buttons.css' %}">
+  <link rel="stylesheet" href="{% static 'css/forms.css' %}">
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+
+  <style>
+    .main-sidebar .nav-link{
+      white-space:nowrap;line-height:normal;display:flex;align-items:center;
+    }
+    .main-sidebar .nav-link p{
+      margin:0;flex:1;overflow:hidden;text-overflow:ellipsis;
+    }
+    /* Прячем сайдбар до восстановления состояния, чтобы не было мигания */
+    .main-sidebar{visibility:hidden}
+  </style>
+  <style>
+  /* Увеличение иконок пользователя и уведомлений */
+  .navbar-nav .nav-link i.fa-user-circle,
+  .navbar-nav .nav-link i.far.fa-bell {
+      font-size: 1.3rem; /* Увеличиваем размер иконок */
+  }
+
+  .navbar-nav .nav-link i.fa-user-circle {
+      font-size: 1.4rem; /* Иконка пользователя чуть больше */
+  }
+
+  /* Увеличение аватара пользователя в выпадающем меню */
+  .navbar-nav .nav-link i.fas.fa-user-circle {
+      font-size: 1.4rem;
+  }
+
+  /* Увеличение отступов вокруг иконок */
+  .navbar-nav .nav-item.dropdown .nav-link {
+      padding: 0.5rem 0.8rem;
+  }
+
+  /* Увеличение бейджа с количеством уведомлений */
+  .navbar-badge {
+      font-size: 0.8rem;
+      padding: 0.25em 0.4em;
+      min-width: 1.2em;
+      height: 1.2em;
+  }
+  </style>
+  {% block extra_css %}
+
+  {% endblock %}
+
+
+  <!-- Восстановить только свёрнутость панели (до рендера) -->
+  <script>
+  (function(){
+    try{
+      var c=localStorage.getItem("sidebar-collapsed");
+      function apply(){
+        if(!document.documentElement) return;
+        if(c==="1") document.documentElement.classList.add("sidebar-collapse");
+        if(c==="0") document.documentElement.classList.remove("sidebar-collapse");
+      }
+      if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",apply,{once:true});} else apply();
+    }catch(e){}
+  })();
+  </script>
+
+  <!-- 1) ДО инициализации AdminLTE: убрать .active из сайдбара, чтобы он сам ничего не раскрыл -->
+  <script>
+  (function(){
+    function stripActive(){
+      var sb=document.querySelector(".main-sidebar");
+      if(!sb) return;
+      sb.querySelectorAll(".nav-sidebar a.nav-link.active").forEach(a=>a.classList.remove("active"));
+    }
+    if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",stripActive,{once:true});}
+    else stripActive();
+  })();
+  </script>
+
+  <!-- Глобальные API-константы -->
+  <script>
+    window.API = window.API || {};
+    if (!API.CHANNELS) API.CHANNELS = 'http://channel_post:5001';
+    if (!API.GROUPS)   API.GROUPS   = 'http://group_post:5002';
+    if (!API.PARSER)   API.PARSER   = '/api/parse_channel';
+  </script>
+</head>
+<body class="hold-transition layout-fixed sidebar-mini {% block body_class %}{% endblock %}">
+
+
+<div class="wrapper">
+
+  <!-- Navbar -->
+  <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+    <ul class="navbar-nav">
+      <li class="nav-item">
+        <a class="nav-link" data-widget="pushmenu" href="#" role="button">
+          <i class="fas fa-bars"></i>
+        </a>
+      </li>
+      {% block navbar_items %}{% endblock %}
+    </ul>
+
+
+
+    <ul class="navbar-nav ml-auto">
+      <!-- Уведомления -->
+      <li class="nav-item dropdown">
+        <a class="nav-link" data-toggle="dropdown" href="#" id="notificationsDropdown">
+          <i class="far fa-bell"></i>
+          <span class="badge badge-danger navbar-badge" id="notificationCount">0</span>
+        </a>
+        <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+          <span class="dropdown-item dropdown-header" id="dropdownHeader">0 Уведомлений</span>
+          <div class="dropdown-divider"></div>
+          <div id="notificationDropdownItems">
+            <!-- Динамически загружаемые уведомления -->
+            <div class="text-center py-2 text-muted">
+              <small>Загрузка...</small>
+            </div>
+          </div>
+          <div class="dropdown-divider"></div>
+          <a href="{% url 'admin_panel:notifications_list' %}" class="dropdown-item dropdown-footer">
+            Все уведомления
+          </a>
+        </div>
+      </li>
+
+      <!-- Пользователь -->
+      {% if request.user.is_authenticated %}
+      <li class="nav-item dropdown">
+        <a class="nav-link" data-toggle="dropdown" href="#">
+          <i class="fas fa-user-circle"></i>
+          <span class="ml-1">{{ request.user.username }}</span>
+        </a>
+        <div class="dropdown-menu dropdown-menu-right">
+          <form method="post" action="{% url 'admin_panel:logout' %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="dropdown-item text-danger" style="background:none;border:none;padding:0;cursor:pointer;">
+              <i class="fas fa-sign-out-alt mr-2"></i> Выйти
+            </button>
+          </form>
+        </div>
+      </li>
+      {% endif %}
+    </ul>
+  </nav>
+
+  <!-- Toasts -->
+  <div class="toasts-bottom-right fixed" id="toastContainer"></div>
+
+{% if request.user.is_authenticated %}
+  <!-- Sidebar -->
+  {% include 'adminlte/lib/_main_sidebar.html' %}
+{% endif %}
+
+  <!-- Контент -->
+  <div class="content-wrapper">
+    <section class="content-header">
+      <div class="container-fluid">
+        <div class="row mb-2">
+          <div class="col-sm-12">
+            {% if breadcrumbs %}
+              <ol class="breadcrumb bg-transparent p-0 mb-0">
+                {% for crumb in breadcrumbs %}
+                  <li class="breadcrumb-item">
+                    {% if crumb.url %}<a href="{{ crumb.url }}">{{ crumb.name }}</a>{% else %}{{ crumb.name }}{% endif %}
+                  </li>
+                {% endfor %}
+              </ol>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="content">
+      {% block content %}{% endblock %}
+    </section>
+  </div>
+
+  <footer class="main-footer">
+    <strong>© 2025 Bot Manager</strong>
+  </footer>
+</div>
+
+<!-- Скрипты -->
+<script src="{% static 'adminlte/plugins/jquery/jquery.min.js' %}"></script>
+<script src="{% static 'adminlte/plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'adminlte/dist/js/adminlte.min.js' %}"></script>
+<script src="{% static 'js/forms_autofit.js' %}"></script>
+
+{% block extra_js %}
+<script>
+function showToast(type, message) {
+  const container = document.getElementById("toastContainer");
+  const toast = document.createElement("div");
+  toast.className = `toast bg-${type} fade show m-2`;
+  toast.setAttribute("role","alert");
+  toast.style.minWidth="250px";
+  toast.innerHTML = `
+    <div class="toast-header">
+      <strong class="mr-auto">${type==="success"?"Успех":"Ошибка"}</strong>
+      <button type="button" class="ml-2 mb-1 close" data-dismiss="toast">&times;</button>
+    </div>
+    <div class="toast-body">${message}</div>`;
+  container.appendChild(toast);
+  setTimeout(()=>toast.remove(),4000);
+}
+</script>
+
+<!-- 2) После загрузки AdminLTE: восстановить открытые ветки и подсветить текущую -->
+<script>
+(function(){
+  const OPEN_KEY="sidebar-open-keys";
+  const COLLAPSE_KEY="sidebar-collapsed";
+
+  function readKeys(){ try{return JSON.parse(localStorage.getItem(OPEN_KEY)||"[]")}catch{return[]} }
+  function writeKeys(keys){ localStorage.setItem(OPEN_KEY, JSON.stringify(Array.from(new Set(keys)))) }
+
+  function stableKey(sidebar, li){
+    if(li.dataset.key) return li.dataset.key;
+    const parts=[];
+    let cur=li;
+    while(cur){
+      const parent=cur.parentElement?.closest?.(".nav-item.has-treeview");
+      const siblings = parent
+        ? parent.querySelectorAll(":scope > .nav-treeview > .nav-item.has-treeview")
+        : sidebar.querySelectorAll(":scope .nav-item.has-treeview");
+      parts.unshift(Array.from(siblings).indexOf(cur));
+      cur=parent;
+    }
+    li.dataset.key="k:"+parts.join(".");
+    return li.dataset.key;
+  }
+
+  function highlightActive(sidebar){
+    const path=window.location.pathname;
+    sidebar.querySelectorAll(".nav-sidebar a.nav-link").forEach(a=>{
+      const href=a.getAttribute("href");
+      if(href && href!=="#" && path.startsWith(href)) a.classList.add("active");
+      else a.classList.remove("active");
+    });
+    sidebar.querySelectorAll(".nav-item.has-treeview > a.nav-link").forEach(head=>{
+      const li=head.parentElement;
+      if(!li.classList.contains("menu-open")) head.classList.remove("active");
+    });
+  }
+
+  function closeAll(sidebar){
+    sidebar.querySelectorAll(".nav-item.has-treeview.menu-open").forEach(li=>{
+      li.classList.remove("menu-open");
+      const head=li.querySelector(":scope > a.nav-link");
+      if(head) head.setAttribute("aria-expanded","false");
+      const tv=li.querySelector(":scope > .nav-treeview");
+      if(tv) tv.style.display="none";
+    });
+  }
+
+  // Открыть конкретный li через "штатный" клик по заголовку
+  function openByClick(li){
+    const head=li.querySelector(":scope > a.nav-link");
+    if(head && !li.classList.contains("menu-open")) head.click();
+  }
+
+  // Собираем всю цепочку предков от листа к корню (для вложенных пунктов)
+  function getBranchChain(sidebar, leafLink){
+    const chain=[];
+    let cur = leafLink.closest(".nav-item.has-treeview");
+    while(cur){
+      chain.unshift(cur);
+      cur = cur.parentElement?.closest?.(".nav-item.has-treeview") || null;
+    }
+    return chain;
+  }
+
+  // Находим самую "глубокую" (длиннейший href) ссылку, которая подходит под текущий путь
+  function pickBestLink(sidebar){
+    const path = window.location.pathname;
+    let best = null, bestLen = -1;
+    sidebar.querySelectorAll('.nav-sidebar a.nav-link[href]').forEach(a=>{
+      const href = a.getAttribute('href');
+      if(!href || href==='#') return;
+      if(path.startsWith(href) && href.length > bestLen){
+        best = a; bestLen = href.length;
+      }
+    });
+    return best;
+  }
+
+  // Находим пункт меню "Плагины -> В работе"
+  function findWorkingPluginsItem(sidebar) {
+    // Ищем пункт "Плагины" (обычно имеет иконку fa-plug)
+    const pluginsItem = Array.from(sidebar.querySelectorAll('.nav-item.has-treeview')).find(item => {
+      const icon = item.querySelector('.nav-link i');
+      return icon && icon.classList.contains('fa-plug');
+    });
+    
+    if (!pluginsItem) return null;
+    
+    // В подменю плагинов ищем пункт "В работе" (который сам имеет подменю)
+    const workingItem = pluginsItem.querySelector('.nav-treeview .nav-item.has-treeview');
+    
+    // Проверяем, что это именно "В работе" по тексту
+    if (workingItem) {
+      const workingText = workingItem.querySelector('.nav-link p')?.textContent?.toLowerCase()?.trim();
+      if (workingText && (workingText.includes('в работе') || workingText.includes('working'))) {
+        return workingItem;
+      }
+    }
+    
+    return null;
+  }
+
+  function restore(){
+    const sidebar = document.querySelector(".main-sidebar");
+    if(!sidebar) return;
+
+    // 1) Закрываем всё
+    closeAll(sidebar);
+
+    // 2) Всегда открываем вкладку "Плагины->В работе"
+    const workingItem = findWorkingPluginsItem(sidebar);
+    let pluginsItem = null;
+    
+    if (workingItem) {
+      // Находим родительский пункт "Плагины"
+      pluginsItem = workingItem.closest('.nav-treeview')?.previousElementSibling?.parentElement;
+      
+      // Открываем "Плагины"
+      if (pluginsItem && pluginsItem.classList.contains('has-treeview')) {
+        openByClick(pluginsItem);
+      }
+      
+      // Открываем "В работе"
+      openByClick(workingItem);
+    }
+
+    // 3) Если пользователь находится в другом разделе (не Плагины), открываем и его
+    const bestLink = pickBestLink(sidebar);
+    if(bestLink){
+      const chain = getBranchChain(sidebar, bestLink);
+      chain.forEach(li => {
+        // Не открываем повторно уже открытые пункты
+        if (li !== pluginsItem && li !== workingItem) {
+          openByClick(li);
+        }
+      });
+    }
+
+    // 4) Подсветка активной ссылки (только реальное местоположение)
+    highlightActive(sidebar);
+
+    // 5) Показываем сайдбар (без мигания)
+    sidebar.style.visibility = "visible";
+  }
+
+  function saveOnToggle(){
+    const sidebar=document.querySelector(".main-sidebar");
+    if(!sidebar) return;
+    $(document).on("expanded.lte.treeview collapsed.lte.treeview", function(){
+      const open=[];
+      sidebar.querySelectorAll(".nav-item.has-treeview.menu-open").forEach(li=>{
+        open.push(stableKey(sidebar, li));
+      });
+      writeKeys(open);
+    });
+  }
+
+  function saveCollapsed(){
+    $(document).on("collapsed.lte.pushmenu shown.lte.pushmenu", function(){
+      localStorage.setItem(COLLAPSE_KEY, document.documentElement.classList.contains("sidebar-collapse")?"1":"0");
+    });
+  }
+
+  if(document.readyState==="complete"||document.readyState==="interactive"){
+    setTimeout(()=>{ restore(); saveOnToggle(); saveCollapsed(); }, 0);
+  } else {
+    document.addEventListener("DOMContentLoaded", ()=>{ setTimeout(()=>{ restore(); saveOnToggle(); saveCollapsed(); },0); });
+  }
+})();
+</script>
+
+
+<script>
+function updateClock() {
+  try {
+    const el = document.getElementById("brand-clock");
+    if (!el) return;
+
+    const now = new Date();
+
+    // время в МСК: UTC+3
+    const mskOffset = 3 * 60; // минуты
+    const localOffset = now.getTimezoneOffset(); // минуты
+    const diff = mskOffset + localOffset;
+
+    const mskTime = new Date(now.getTime() + diff * 60000);
+    const hh = String(mskTime.getHours()).padStart(2, "0");
+    const mm = String(mskTime.getMinutes()).padStart(2, "0");
+
+    el.textContent = `${hh}:${mm} (МСК)`;
+  } catch(e) {
+    console.warn("Clock error:", e);
+  }
+}
+
+// сразу при загрузке
+updateClock();
+// и обновление каждую минуту
+setInterval(updateClock, 60 * 1000);
+</script>
+
+
+<!-- (опция) авто-подгон ширины при развороте/сворачивании -->
+<script>
+$(function(){
+  const DEFAULT_W=260, MAX_W=310, GAP=10;
+  function setW(px){ document.documentElement.style.setProperty('--sidebar-w', px+'px'); }
+  function compute(){
+    let req=DEFAULT_W;
+    $('.menu-open > .nav-treeview a').each(function(){
+      const w=$(this).outerWidth(true); if(w+GAP>req) req=w+GAP;
+    });
+    return Math.min(req, MAX_W);
+  }
+  function adjust(){
+    if($('html').hasClass('sidebar-collapse')) setW(0);
+    else {
+      const open=$('.menu-open > .nav-treeview');
+      if(open.length===0) setW(DEFAULT_W);
+      else setTimeout(()=>setW(compute()),300);
+    }
+  }
+  $(document).on('expanded.lte.treeview collapsed.lte.treeview', adjust);
+  $(document).on('shown.lte.pushmenu collapsed.lte.pushmenu', adjust);
+  $(window).on('load resize', adjust);
+});
+</script>
+{% endblock %}
+</body>
+</html>

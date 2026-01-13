@@ -1,0 +1,41 @@
+<!-- Задачи -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Задачи публикаций</h2>
+  <a href="{% url 'admin_panel:channel_post_task_create' %}" class="btn btn-primary">
+    <i class="fas fa-plus"></i> Создать задачу
+  </a>
+</div>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th>Бот</th>
+      <th>Главный канал</th>
+      <th>Библиотеки</th>
+      <th>Действия</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in tasks %}
+    <tr>
+      <td>{{ t.bot.description|default:"—" }}</td>
+      <td>{{ t.main_channel.name }}</td>
+      <td>
+        {% for lib in t.libraries %}
+          <span class="badge badge-secondary">{{ lib.name }}</span>
+        {% endfor %}
+      </td>
+      <td>
+        {% for lib in t.libraries %}
+          <a href="{% url 'admin_panel:channel_post_task_delete' lib.category lib.id %}" 
+             class="btn btn-sm btn-danger" title="Удалить">
+            <i class="fas fa-trash"></i>
+          </a>
+        {% endfor %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="4" class="text-muted text-center">Нет задач для этого плагина</td></tr>
+    {% endfor %}
+  </tbody>
+</table>

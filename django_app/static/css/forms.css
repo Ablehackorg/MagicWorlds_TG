@@ -1,0 +1,244 @@
+/* === ФОРМЫ И ИНПУТЫ === */
+
+/* Двухколоночная верстка форм */
+.content .form-group {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.content .form-group > label {
+  flex: 0 0 180px;
+  margin: 0;
+  font-weight: 500;
+  color: #444;
+  padding-right: 1rem;
+  text-align: right;
+  border-right: 1px solid rgba(0,0,0,0.1);
+}
+
+.content .form-group textarea.form-control,
+.content .form-group select[multiple].form-control {
+  flex: 0 0 auto;
+  max-width: 400px;
+  min-width: 60ch;
+  min-height: 120px;
+}
+
+.content .form-text {
+  margin-left: calc(180px + 1rem);
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
+/* === ПЕРЕКЛЮЧАТЕЛИ (SWITCHES) === */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px; /* Как в ваших старых стилях */
+  height: 24px;
+  vertical-align: middle;
+}
+.switch input { 
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 24px;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+input:checked + .slider {
+  background-color: #28a745;
+}
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+.slider.round {
+  border-radius: 24px;
+}
+.slider.round:before {
+  border-radius: 50%;
+}
+.switch-green input:checked + .slider { background-color: #28a745; }
+.switch-blue input:checked + .slider { background-color: #007bff; }
+
+/* Контейнер для switch и текста */
+.switch-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px; /* Отступ между switch и текстом */
+  vertical-align: middle;
+}
+
+.switch-wrapper span {
+  font-size: 0.9rem;
+  color: #444;
+  line-height: 1;
+}
+
+/* Стили для тумблеров внутри форм */
+.content .form-group .switch {
+  flex: 0 0 auto !important;
+  margin-left: 0 !important;
+}
+
+.content .form-group .switch input {
+  width: auto !important;
+  min-width: 0 !important;
+}
+
+/* Глобальный свитч */
+.global-switch {
+  margin-top: 10px;
+}
+/* Специфичные стили */
+.global-switch.d-flex.align-items-center.gap-2 span {
+  line-height: 1; /* Убираем лишнюю высоту строки */
+  vertical-align: middle; /* Выравниваем по вертикали */
+}
+
+/* Для свитчей в тарифных строках */
+.d-flex.align-items-center.gap-2 span {
+  line-height: 1;
+  vertical-align: middle;
+}
+
+/* Стили для тумблеров внутри форм */
+.content .form-group .switch {
+  flex: 0 0 auto !important;
+  margin-left: 0 !important;
+}
+
+.content .form-group .switch input {
+  width: auto !important;
+  min-width: 0 !important;
+}
+/* === КРУГОВЫЕ ДНИ === */
+.circle-day {
+  cursor: pointer;
+  user-select: none;
+  margin-right: 8px;
+}
+.circle-day:last-child {
+  margin-right: 0;
+}
+
+.circle-day input {
+  display: none;
+}
+
+.circle-day .dot {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #6c757d;
+  background: transparent;
+  transition: all 0.2s;
+}
+
+.circle-day input:checked + .dot {
+  background: #007bff;
+  border-color: #007bff;
+}
+
+.circle-day .day-label {
+  font-size: 0.9rem;
+  color: #444;
+}
+
+/* Отступ для первых элементов в группах */
+.form-group .circle-day:first-child {
+  margin-left: 12px;  
+}
+
+/* === АДАПТИВНОСТЬ === */
+@media (max-width: 768px) {
+  .content .form-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .content .form-group > label {
+    flex: unset;
+    width: 100%;
+    text-align: left;
+    border: none;
+    padding: 0 0 .25rem 0;
+  }
+  .content .form-group > .form-control,
+  .content .form-group > select,
+  .content .form-group > .custom-file,
+  .content .form-group > .input-group {
+    margin-left: 0;
+    min-width: 100%;
+    max-width: 100%;
+  }
+  .content .form-text {
+    margin-left: 0;
+  }
+}
+
+/* === ЗАГОЛОВКИ ФОРМ === */
+.content-header + .content h1,
+.content-header + .content h1.mb-0,
+.content .container-fluid > h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: -0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* Утилиты форм */
+.form-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+/* === ОБЩИЕ СТИЛИ ДЛЯ ПОЛЕЙ ДАТЫ И ВРЕМЕНИ === */
+
+/* Классы для компактных полей */
+.form-control.compact-date {
+  min-width: 140px !important;
+  max-width: 145px !important;
+  
+}
+
+.form-control.compact-time {
+  min-width: 70px !important;
+  max-width: 70px !important;
+  width: auto !important;
+}
+
+/* Общие стили для остальных полей (кроме даты/времени) */
+.content .form-group > input.form-control:not([type="checkbox"]):not([type="radio"]):not([type="date"]):not([type="time"]),
+.content .form-group > select:not([type="date"]):not([type="time"]),
+.content .form-group > .custom-file,
+.content .form-group > .input-group {
+  margin-left: 1rem;
+  width: auto;
+  min-width: 60ch;
+  max-width: 400px;
+  flex: 0 0 auto;
+}
+
+.name-col { flex: 0 0 250px; max-width: 250px; }
+.flex-col { flex: 1 1 200px; min-width: 180px; max-width: 350px; }

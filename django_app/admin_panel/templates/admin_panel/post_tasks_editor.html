@@ -1,0 +1,110 @@
+{% extends "adminlte/base.html" %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <h1 class="mb-4">Редактирование задачи</h1>
+
+    <form id="editTaskForm">
+      <div class="form-group row">
+        <label class="col-sm-2 col-form-label">Статус</label>
+        <div class="col-sm-10">
+          <select class="form-control" name="status">
+            <option value="success">Активен</option>
+            <option value="error">Ошибка</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group row">
+        <label class="col-sm-2 col-form-label">ID</label>
+        <div class="col-sm-10">
+          <input type="number" class="form-control" name="id" value="1" readonly>
+        </div>
+      </div>
+
+      <div class="form-group row">
+        <label class="col-sm-2 col-form-label">Цель - где публикуем</label>
+        <div class="col-sm-10">
+          <select class="form-control" name="target">
+            <option value="Цель1">Цель1</option>
+            <option value="Цель2">Цель2</option>
+            <option value="Цель3">Цель3</option>
+            <option value="Цель4">Цель4</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group row">
+        <label class="col-sm-2 col-form-label">День</label>
+        <div class="col-sm-10">
+          <select class="form-control" name="days" multiple>
+            <option value="Пн">Пн</option>
+            <option value="Вт">Вт</option>
+            <option value="Ср">Ср</option>
+            <option value="Чт">Чт</option>
+            <option value="Пт">Пт</option>
+            <option value="Сб">Сб</option>
+            <option value="Вс">Вс</option>
+          </select>
+          <small class="form-text text-muted">Удерживайте Ctrl (или Cmd на Mac), чтобы выбрать несколько дней.</small>
+        </div>
+      </div>
+
+      <div class="form-group row">
+        <label class="col-sm-2 col-form-label">Время</label>
+        <div class="col-sm-10">
+          <input type="time" class="form-control" name="time" value="12:00">
+        </div>
+      </div>
+
+      <div class="form-group row">
+        <label class="col-sm-2 col-form-label">Источник - откуда берём</label>
+        <div class="col-sm-10">
+          <select class="form-control" name="source">
+            <option value="Источник1">Источник1</option>
+            <option value="Источник2">Источник2</option>
+            <option value="Источник3">Источник3</option>
+            <option value="Источник4">Источник4</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group row">
+        <label class="col-sm-2 col-form-label">Выбор</label>
+        <div class="col-sm-10">
+          <select class="form-control" name="choice">
+            <option>Случайный</option>
+            <option>По порядку</option>
+            <option>По имени</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group row">
+        <label class="col-sm-2 col-form-label">После публикации</label>
+        <div class="col-sm-10">
+          <select class="form-control" name="after">
+            <option>По кругу</option>
+            <option>Удаляем</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group row">
+        <div class="col-sm-10 offset-sm-2">
+          <button type="submit" class="btn btn-primary">Сохранить</button>
+          <a href="{% url 'admin_panel:channel_post_tasks' %}" class="btn btn-secondary">Отмена</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</section>
+
+<script>
+  document.getElementById("editTaskForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    alert("Сохранение задачи (заглушка)");
+  });
+</script>
+{% endblock %}

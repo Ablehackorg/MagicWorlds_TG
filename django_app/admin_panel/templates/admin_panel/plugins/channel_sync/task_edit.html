@@ -1,0 +1,408 @@
+<!-- templates/admin_panel/plugins/channel_sync/task_edit.html -->
+{% extends "adminlte/base.html" %}
+{% block body_class %}page-scroll{% endblock %}
+{% load static %}
+{% load filters %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+
+    <!-- ===== Заголовок ===== -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div class="d-flex align-items-center">
+        <h1 class="mb-0 mr-3">{{ page_title }}</h1>
+        <div class="btn-toolbar" role="toolbar">
+          <button type="submit" form="main-form" class="btn btn-success mr-2">Сохранить в БД</button>
+          <a href="{% url 'admin_panel:channel_sync_tasks_view' %}" class="btn btn-secondary">Отмена</a>
+        </div>
+      </div>
+
+      <!-- справа: тумблер и отдельная красная "Удалить" -->
+      <div class="d-flex align-items-center" style="gap:12px;">
+        <span>Выкл</span>
+        <label class="switch switch-blue mb-0">
+          <input type="checkbox" id="toggle-active" {% if task.is_active %}checked{% endif %}>
+          <span class="slider round"></span>
+        </label>
+        <span>Вкл</span>
+        <input type="hidden" name="is_active" id="is_active" form="main-form" value="{% if task.is_active %}1{% else %}0{% endif %}">
+
+        {% if task %}
+        <form method="post" action="{% url 'admin_panel:channel_sync_task_delete' task.id %}" 
+              onsubmit="return confirm('Удалить задачу #{{ task.id }}?');">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Удалить</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ===== Форма ===== -->
+    <form method="post" id="main-form" enctype="multipart/form-data">
+      {% csrf_token %}
+
+      <!-- Блок: Добавить чужой канал-Источник -->
+      <div class="section-bar">Добавить чужой канал-Источник</div>
+      <div class="form-rows">
+        <!-- Форма для нового канала -->
+        <div id="source_form_container">
+          {% include "admin_panel/entities/entity_form_part.html" with entity=task.source entity_type="source" %}
+        </div>
+        <!-- Выбор существующего канала -->
+        <div class="form-row">
+          <div class="left">Или - выбрать уже имеющийся в БД</div>
+          <div class="right d-flex align-items-center" style="gap:12px;">
+            <select name="source_id" id="source_id" class="form-control" style="max-width:560px;">
+              <option value="">— выберите канал/группу —</option>
+              {% for e in entities %}
+                <option value="{{ e.id }}" data-link="{{ e.link }}" {% if task.source.id == e.id %}selected{% endif %}>
+                  {{ e.name }}
+                </option>
+              {% endfor %}
+            </select>
+            <button type="button" id="openSourceLinkBtn" class="btn btn-outline-secondary">
+              <img src="{% static 'admin_panel/img/search.png' %}" alt="Открыть" class="icon-16">
+            </button>
+          </div>
+        </div>
+      
+      </div>
+
+      <!-- Блок: Наш канал-Библиотека -->
+      <div class="section-bar">Наш канал-Библиотека</div>
+      <div class="form-rows">
+        <div class="form-row">
+          <div class="left">Канал-Библиотека</div>
+          <div class="right d-flex align-items-center" style="gap:12px;">
+            <select name="target_id" id="target_id" class="form-control" required style="max-width:560px;">
+              <option value="">— выберите канал/группу —</option>
+              {% for e in entities %}
+                <option value="{{ e.id }}" data-type="{{ e.entity_type }}" data-link="{{ e.link }}" {% if task.target.id == e.id %}selected{% endif %}>
+                  {{ e.name }}
+                </option>
+              {% endfor %}
+            </select>
+            <button type="button" id="openTargetLinkBtn" class="btn btn-outline-secondary">
+              <img src="{% static 'admin_panel/img/search.png' %}" alt="Открыть" class="icon-16">
+            </button>
+          </div>
+        </div>
+        
+        <!-- Юзербот назначен админом -->
+        <div class="form-row">
+          <div class="left">Юзербот назначен админом</div>
+          <div class="right d-flex align-items-center">
+            {% if task and task.bot %}
+              <span class="status-dot active mr-2" title="Бот назначен"></span>
+            {% else %}
+              <span class="status-dot gray mr-2" title="Бот не назначен"></span>
+            {% endif %}
+            <button type="button" class="btn btn-outline-secondary btn-sm">Обновить</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Блок: Клонирование -->
+      <div class="section-bar">Клонирование</div>
+      <div class="form-rows">
+          <div class="form-row">
+              <div class="left">Запустить сейчас</div>
+              <div class="right d-flex align-items-center" style="gap:12px;">
+                  <button type="button" id="runScriptBtn" class="btn btn-primary">
+                    Запуск скрипта
+                  </button>
+                  {% include "admin_panel/includes/progress_bar.html" with value=sync_progress_percent %}
+              </div>
+          </div>
+      </div>
+
+      <!-- Блок: Актуализация -->
+      <div class="section-bar">Актуализация</div>
+      <div class="form-rows">
+        <!-- Запустить актуализацию -->
+        <div class="form-row">
+          <div class="left">Запустить актуализацию</div>
+          <div class="right d-flex align-items-center" style="gap:12px;">
+            <input type="hidden" name="run_once_task" id="run_once_task" value="{% if task.run_once_task %}1{% else %}0{% endif %}">
+            <div class="target-actions text-nowrap">
+              {% if task.run_once_task %}
+                <img src="{% static 'admin_panel/img/play.png' %}" class="icon-16 toggle-icon" data-value="1" title="Активен">
+                <img src="{% static 'admin_panel/img/pause_gray.png' %}" class="icon-16 toggle-icon" data-value="0" title="Неактивен">
+              {% else %}
+                <img src="{% static 'admin_panel/img/play_gray.png' %}" class="icon-16 toggle-icon" data-value="1" title="Активен">
+                <img src="{% static 'admin_panel/img/pause.png' %}" class="icon-16 toggle-icon" data-value="0" title="Неактивен">
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Актуализировать -->
+        <div class="form-row">
+          <div class="left">Актуализировать каждые</div>
+          <div class="right d-flex flex-wrap align-items-center" style="gap:16px;">
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="update_period_days" value="7" 
+                     {% if task.update_period_days == 7 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Неделю</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="update_period_days" value="14"
+                     {% if task.update_period_days == 14 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Две недели</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="update_period_days" value="30"
+                     {% if task.update_period_days == 30 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Месяц</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="update_period_days" value=""
+                     {% if not task.update_period_days %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Никогда</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Диапазон актуализации -->
+        <div class="form-row">
+          <div class="left">Диапазон актуализации</div>
+          <div class="right d-flex flex-wrap align-items-center" style="gap:16px;">
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="update_range" value="new_only"
+                     {% if not task or task.update_range == "new_only" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Только новые</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="update_range" value="full"
+                     {% if task.update_range == "full" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Весь канал</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Время запуска -->
+        <div class="form-row">
+            <div class="left">Время запуска</div>
+            <div class="right d-flex align-items-center" style="gap:12px;">
+                <span>В 1-ый день выбранного периода в</span>
+                <input type="time" name="scheduled_time" value="{{ task.scheduled_time|time:'H:i'|default:'00:00' }}" class="form-control" style="width:120px;">
+            </div>
+        </div>
+
+      <!-- Блок: Журнал обновлений -->
+      <div class="section-bar">Журнал обновлений</div>
+      <div class="form-rows">
+        <div class="form-row">
+          <div class="left">История актуализации</div>
+          <div class="right">
+            <div class="history-table">
+              <div class="history-header mb-2" style="font-size:12px; color:#6c757d;">
+                <span>Дата</span>
+                <span>URL последнего поста</span>
+                <span>Было постов</span>
+                <span>Стало постов</span>
+              </div>
+              {% for h in history %}
+              <div class="history-row py-1 border-bottom">
+                <span>{{ h.sync_date|date:"d.m.Y H:i" }}</span>
+                <span>
+                  {% if h.last_post_url %}
+                    <a href="{{ h.last_post_url }}" target="_blank">{{ h.last_post_url|truncatechars:30 }}</a>
+                  {% else %}
+                    —
+                  {% endif %}
+                </span>
+                <span>{{ h.posts_before }}</span>
+                <span>{{ h.posts_after }}</span>
+              </div>
+              {% empty %}
+              <div class="text-center text-muted py-3">История синхронизации отсутствует</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </form>
+
+  </div>
+</section>
+
+<style>
+  .section-bar { 
+    background: #e9ecef; 
+    color: #2e3a46; 
+    font-weight: 600;
+    padding: 8px 12px; 
+    margin: 14px 0 6px; 
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+  }
+  
+  .form-rows {
+    border: 1px solid #e9ecef; 
+    border-radius: 6px; 
+    background: #fff; 
+    margin-bottom: 8px;
+  }
+  
+  .form-row { 
+    display: flex; 
+    align-items: center; 
+    padding: 10px 12px; 
+    border-top: 1px solid #f2f4f6;
+  }
+  
+  .form-row:first-child { border-top: 0; }
+  .form-row .left { font-weight: 600; color: #495057; width: 220px; flex-shrink: 0; }
+  .form-row .right { flex: 1; }
+  
+  .history-table {
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .history-header,
+  .history-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 10px;
+    align-items: center;
+  }
+
+  /* Стили для кружочков как в примерах */
+  .circle-day { cursor: pointer; }
+  .circle-day input[type="radio"] { display: none; }
+  .circle-day .dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid #adb5bd;
+    position: relative;
+    transition: all 0.3s;
+  }
+  .circle-day input[type="radio"]:checked + .dot {
+    border-color: #007bff;
+  }
+  .circle-day input[type="radio"]:checked + .dot::after {
+    content: '';
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #007bff;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .day-label { margin-left: 8px; }
+
+  /* Стили для статус-дотов */
+  .status-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+  .status-dot.active { background-color: #28a745; }
+  .status-dot.gray { background-color: #6c757d; }
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // Тумблер активности
+  const toggle = document.getElementById("toggle-active");
+  const hidden = document.getElementById("is_active");
+  if (toggle && hidden) {
+    toggle.checked = hidden.value === "1";
+    toggle.addEventListener("change", () => {
+      hidden.value = toggle.checked ? "1" : "0";
+    });
+  }
+
+  // Переключение кнопок Play/Pause для актуализации
+  document.querySelectorAll(".toggle-icon").forEach(icon => {
+    icon.addEventListener("click", () => {
+      const activeNow = icon.dataset.value === "1";
+      const hiddenInput = document.getElementById("run_once_task");
+      const play = document.querySelector('.toggle-icon[data-value="1"]');
+      const pause = document.querySelector('.toggle-icon[data-value="0"]');
+      
+      if (hiddenInput) {
+        hiddenInput.value = activeNow ? "1" : "0";
+
+        if (activeNow) {
+          play.src = "{% static 'admin_panel/img/play.png' %}";
+          pause.src = "{% static 'admin_panel/img/pause_gray.png' %}";
+        } else {
+          play.src = "{% static 'admin_panel/img/play_gray.png' %}";
+          pause.src = "{% static 'admin_panel/img/pause.png' %}";
+        }
+      }
+    });
+  });
+
+});
+// Открытие ссылки на выбранный канал-библиотеку
+const openTargetLinkBtn = document.getElementById('openTargetLinkBtn');
+const targetSelect = document.querySelector('select[name="target_id"]');
+if (openTargetLinkBtn && targetSelect) {
+  openTargetLinkBtn.addEventListener('click', () => {
+    const opt = targetSelect.options[targetSelect.selectedIndex];
+    const link = opt ? opt.dataset.link : "";
+    if (!link) {
+      alert('Для выбранного канала/группы нет ссылки.');
+      return;
+    }
+    let url = link;
+    if (!url.startsWith('http')) {
+      url = 'https://t.me/' + link.replace('@', '');
+    }
+    window.open(url, '_blank');
+  });
+}
+
+// Открытие ссылки на выбранный источник
+const openSourceLinkBtn = document.getElementById('openSourceLinkBtn');
+const sourceSelect = document.querySelector('select[name="source_id"]');
+if (openSourceLinkBtn && sourceSelect) {
+  openSourceLinkBtn.addEventListener('click', () => {
+    const opt = sourceSelect.options[sourceSelect.selectedIndex];
+    const link = opt ? opt.dataset.link : "";
+    if (!link) {
+      alert('Для выбранного канала/группы нет ссылки.');
+      return;
+    }
+    let url = link;
+    if (!url.startsWith('http')) {
+      url = 'https://t.me/' + link.replace('@', '');
+    }
+    window.open(url, '_blank');
+  });
+}
+</script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const runBtn = document.getElementById("runScriptBtn");
+  const runOnceInput = document.getElementById("run_once_task");
+  const form = document.getElementById("main-form");
+
+  if (runBtn && runOnceInput && form) {
+    runBtn.addEventListener("click", () => {
+      // Явно выставляем флаг
+      runOnceInput.value = "1";
+
+      // Отправляем форму
+      form.submit();
+    });
+  }
+});
+</script>
+{% endblock %}

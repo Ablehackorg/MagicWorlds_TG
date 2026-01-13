@@ -1,0 +1,137 @@
+{% extends "adminlte/base.html" %}
+{% load static %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+
+    <!-- Заголовок + кнопки -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <!-- слева: заголовок + Обновить -->
+      <div class="d-flex align-items-center">
+        <h1 class="mb-0 mr-3">Статистика сервиса</h1>
+        <button type="button"
+                id="refreshStatsBtn"
+                class="btn btn-outline-secondary btn-sm">
+          <i class="fas fa-sync-alt"></i> Обновить
+        </button>
+      </div>
+
+      <!-- справа: выбор недели + шестерёнка -->
+      <div class="d-flex align-items-center">
+        <div class="d-flex align-items-center mr-3">
+          <button type="button"
+                  class="btn period-btn {% if current_period == 'prev2' %}btn-primary{% else %}btn-outline-secondary{% endif %} mr-2"
+                  data-period="prev2">
+            Пред-предыдущая
+          </button>
+          <button type="button"
+                  class="btn period-btn {% if current_period == 'prev' %}btn-primary{% else %}btn-outline-secondary{% endif %} mr-2"
+                  data-period="prev">
+            Предыдущая
+          </button>
+          <button type="button"
+                  class="btn period-btn {% if current_period == 'current' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+            Текущая неделя
+          </button>
+        </div>
+
+        <span class="col-toggle-btn" title="Управление столбцами">
+          <i class="fas fa-cog"></i>
+        </span>
+      </div>
+
+    </div>
+
+    <!-- Таблица (подгружается парциалом) -->
+    <div id="statsTableContainer">
+      {% include "admin_panel/stats/twiboost/_stats_table.html" %}
+    </div>
+
+  </div>
+</section>
+
+<script type="module">
+  import { initSortableTables } from "{% static 'admin_panel/js/sortableTable.js' %}";
+  import { initTablePagination } from "{% static 'admin_panel/js/pagination.js' %}";
+  import "{% static 'admin_panel/js/colToggles.js' %}";
+
+  function initTable() {
+    initSortableTables();
+    initTablePagination(20);
+  }
+
+  function setActivePeriodButton(period) {
+    const buttons = document.querySelectorAll('.period-btn');
+    buttons.forEach(btn => {
+      if (btn.dataset.period === period) {
+        btn.classList.remove('btn-outline-secondary');
+        btn.classList.add('btn-primary');
+      } else {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline-secondary');
+      }
+    });
+  }
+
+  async function loadStats(period) {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('period', period);
+      url.searchParams.set('ajax', '1');
+
+      const response = await fetch(url.toString(), {
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+
+      if (!response.ok) {
+        console.error('Ошибка загрузки статистики:', response.status);
+        return;
+      }
+
+      const data = await response.json();
+      const container = document.getElementById('statsTableContainer');
+      container.innerHTML = data.html;
+
+    } catch (e) {
+      console.error('Ошибка запроса статистики:', e);
+    }
+
+    // после перерисовки нужно заново инициализировать сортировку и пагинацию
+    initTable();
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // первичная инициализация таблицы
+    initTable();
+
+    const refreshBtn = document.getElementById('refreshStatsBtn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => {
+        const activeBtn = document.querySelector('.period-btn.btn-primary') ||
+                          document.querySelector('.period-btn[data-period="current"]');
+        const period = activeBtn ? activeBtn.dataset.period : 'current';
+        loadStats(period);
+      });
+    }
+
+    document.querySelectorAll('.period-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const period = btn.dataset.period || 'current';
+
+        // Не переключаем, если уже выбрана
+        if (btn.classList.contains('btn-primary')) {
+          return;
+        }
+
+        setActivePeriodButton(period);
+        loadStats(period);
+      });
+    });
+
+  });
+</script>
+{% endblock %}
+

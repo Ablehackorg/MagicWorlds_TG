@@ -1,0 +1,784 @@
+{% extends "adminlte/base.html" %}
+{% load static %}
+{% load filters %}
+{% block body_class %}page-scroll{% endblock %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <!-- === Верхняя полоса с кнопками === -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="d-flex align-items-center">
+        <h1 class="mb-0 mr-3">Настройки бустера</h1>
+        <button form="main-form" type="submit" class="btn btn-success">Сохранить</button>
+        <a href="{% url 'admin_panel:dashboard' %}" class="btn btn-secondary">Отмена</a>
+      </div>
+
+      <!-- Глобальный голубой свитч справа -->
+      <div class="d-flex align-items-center" style="gap:12px;">
+        <span>Выкл</span>
+        <label class="switch switch-blue mb-0">
+          <input type="checkbox" name="is_active" form="main-form" {% if settings.is_active %}checked{% endif %}>
+          <span class="slider round"></span>
+        </label>
+        <span>Вкл</span>
+      </div>
+    </div>
+
+    <form method="post" id="main-form">
+      {% csrf_token %}
+      
+      <!-- === УЧЁТНАЯ ЗАПИСЬ === -->
+      <div class="section-bar">Учётная запись</div>
+      <div class="form-rows">
+
+        <!-- Ссылка на биржу -->
+        <div class="form-row">
+          <div class="left">Ссылка на биржу</div>
+          <div class="right d-flex align-items-center" style="gap:12px;">
+            <input type="url" class="form-control" name="url" value="{{ settings.url }}" placeholder="https://twiboost.com">
+          </div>
+        </div>
+
+        <!-- Токен биржи -->
+        <div class="form-row">
+          <div class="left">Токен биржи</div>
+          <div class="right d-flex align-items-center flex-wrap" style="gap:12px;">
+            <input type="text" class="form-control" name="api_key" value="{{ settings.api_key }}" placeholder="API key / токен доступа" style="max-width:360px;">
+            <button type="button" class="btn btn-outline-primary btn-sm" id="refreshStatusBtn">
+              Обновить
+            </button>
+            <div class="d-flex align-items-center" style="gap:8px;">
+              <span class="text-muted small">Текущий статус</span>
+              <span class="status-dot {% if api_ok %}green{% else %}red{% endif %}" id="apiStatusDot"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Текущий баланс биржи -->
+        <div class="form-row">
+          <div class="left">Текущий баланс биржи</div>
+          <div class="right d-flex align-items-center flex-wrap" style="gap:12px;">
+            <div class="d-flex align-items-center" style="gap:6px;">
+              <span id="balanceValue">{{ settings.balance|floatformat:2 }}</span> ₽
+            </div>
+            <div class="text-muted small" id="lastCheckWrapper">
+              На <span id="lastCheck">{{ settings.last_balance_check|date:"d.m.Y H:i" }}</span>
+            </div>
+            <button type="button" class="btn btn-outline-primary btn-sm" id="refreshBalanceBtn">
+              Обновить
+            </button>
+          </div>
+        </div>
+
+        <!-- Оповещение при низком балансе -->
+        <div class="form-row">
+          <div class="left">Оповещение, если баланс ниже</div>
+          <div class="right d-flex align-items-center flex-wrap" style="gap:10px;">
+            <input type="number" class="form-control" name="balance_alert_limit" style="width:100px;" value="{{ settings.balance_alert_limit|default:0 }}">
+            <span class="text-muted">руб</span>
+            <div class="d-flex align-items-center" style="gap:12px;">
+              <span>Выкл</span>
+              <label class="switch switch-green mb-0">
+                <input type="checkbox" name="is_balance_notify" {% if settings.is_balance_notify %}checked{% endif %}>
+                <span class="slider round"></span>
+              </label>
+              <span>Вкл</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- === ТАРИФНЫЕ ПЛАНЫ === -->
+      <div class="section-bar">Тарифные планы</div>
+      <div class="form-rows">
+        
+        <!-- Просмотры старых постов -->
+        <div class="form-row module-section">
+          <div class="left">
+            <div class="module-name">Просмотры старых постов</div>
+          </div>
+          <div class="right">
+            <!-- Список тарифов -->
+            <div class="tariffs-list" data-module="old_views">
+              {% for tariff in tariffs.old_views %}
+              <div class="tariff-row d-flex align-items-center gap-2 mb-2">
+                <!-- Галочка "Основной" -->
+                <div class="d-flex align-items-center primary-checkbox-container">
+                  <label class="primary-checkbox-label">
+                    <input type="checkbox" class="primary-checkbox" data-module="old_views" 
+                           {% if tariff.is_primary %}checked{% endif %}>
+                    <span class="checkmark"></span>
+                  </label>
+                  <!-- Скрытое поле для отправки значения -->
+                  <input type="hidden" name="old_views_primary_{{ forloop.counter }}" 
+                         value="{% if tariff.is_primary %}1{% else %}0{% endif %}">
+                </div>
+
+                <span class="text-muted">ID =</span>
+                <input type="number" name="old_views_id_{{ forloop.counter }}" class="form-control form-control-sm" style="width:80px;" value="{{ tariff.service_id }}">
+                <span class="text-muted">Лимит: от</span>
+                <input type="number" name="old_views_min_{{ forloop.counter }}" class="form-control form-control-sm" style="width:80px;" value="{{ tariff.min_limit }}">
+                <span class="text-muted">Тариф за 1000:</span>
+                <input type="number" step="0.01" name="old_views_tariff_{{ forloop.counter }}" class="form-control form-control-sm" style="width:80px;" value="{{ tariff.price_per_1000 }}">
+                <span class="text-muted">Комментарий:</span>
+                <input type="text" name="old_views_comment_{{ forloop.counter }}" class="form-control form-control-sm tariff-comment" value="{{ tariff.comment }}">
+
+                <input type="hidden" name="old_views_active_{{ forloop.counter }}" value="{% if tariff.is_active %}1{% else %}0{% endif %}">
+                <div class="target-actions text-nowrap">
+                  {% if tariff.is_active %}
+                    <img src="{% static 'admin_panel/img/play.png' %}" class="icon-16 toggle-icon-tariff" data-value="1" data-index="{{ forloop.counter }}" data-module="old_views" title="Активен">
+                    <img src="{% static 'admin_panel/img/pause_gray.png' %}" class="icon-16 toggle-icon-tariff" data-value="0" data-index="{{ forloop.counter }}" data-module="old_views" title="Неактивен">
+                  {% else %}
+                    <img src="{% static 'admin_panel/img/play_gray.png' %}" class="icon-16 toggle-icon-tariff" data-value="1" data-index="{{ forloop.counter }}" data-module="old_views" title="Активен">
+                    <img src="{% static 'admin_panel/img/pause.png' %}" class="icon-16 toggle-icon-tariff" data-value="0" data-index="{{ forloop.counter }}" data-module="old_views" title="Неактивен">
+                  {% endif %}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            
+            <!-- Кнопка добавления тарифа -->
+            <div class="mb-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm add-tariff" data-module="old_views">Добавить тариф</button>
+            </div>
+            
+            <!-- Свитч старых просмотров -->
+            <div class="d-flex align-items-center" style="gap:12px;">
+              <span>Выкл</span>
+              <label class="switch switch-green mb-0">
+                <input type="checkbox" name="is_active_old_views" {% if settings.is_active_old_views %}checked{% endif %}>
+                <span class="slider round"></span>
+              </label>
+              <span>Вкл</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Разделитель -->
+        <div class="module-divider"></div>
+
+        <!-- Умные просмотры новых постов -->
+        <div class="form-row module-section">
+          <div class="left">
+            <div class="module-name">Умные просмотры новых постов</div>
+          </div>
+          <div class="right">
+            <!-- Список тарифов -->
+            <div class="tariffs-list" data-module="new_views">
+              {% for tariff in tariffs.new_views %}
+              <div class="tariff-row d-flex align-items-center gap-2 mb-2">
+                <!-- Галочка "Основной" -->
+                <div class="d-flex align-items-center primary-checkbox-container">
+                  <label class="primary-checkbox-label">
+                    <input type="checkbox" class="primary-checkbox" data-module="new_views" 
+                           {% if tariff.is_primary %}checked{% endif %}>
+                    <span class="checkmark"></span>
+                  </label>
+                  <!-- Скрытое поле для отправки значения -->
+                  <input type="hidden" name="new_views_primary_{{ forloop.counter }}" 
+                         value="{% if tariff.is_primary %}1{% else %}0{% endif %}">
+                </div>
+
+                <span class="text-muted">ID =</span>
+                <input type="number" name="new_views_id_{{ forloop.counter }}" class="form-control form-control-sm" style="width:80px;" value="{{ tariff.service_id }}">
+                <span class="text-muted">Лимит: от</span>
+                <input type="number" name="new_views_min_{{ forloop.counter }}" class="form-control form-control-sm" style="width:80px;" value="{{ tariff.min_limit }}">
+                <span class="text-muted">Тариф за 1000:</span>
+                <input type="number" step="0.01" name="new_views_tariff_{{ forloop.counter }}" class="form-control form-control-sm" style="width:80px;" value="{{ tariff.price_per_1000 }}">
+                <span class="text-muted">Комментарий:</span>
+                <input type="text" name="new_views_comment_{{ forloop.counter }}" class="form-control form-control-sm tariff-comment" value="{{ tariff.comment }}">
+
+                <input type="hidden" name="new_views_active_{{ forloop.counter }}" value="{% if tariff.is_active %}1{% else %}0{% endif %}">
+                <div class="target-actions text-nowrap">
+                  {% if tariff.is_active %}
+                    <img src="{% static 'admin_panel/img/play.png' %}" class="icon-16 toggle-icon-tariff" data-value="1" data-index="{{ forloop.counter }}" data-module="new_views" title="Активен">
+                    <img src="{% static 'admin_panel/img/pause_gray.png' %}" class="icon-16 toggle-icon-tariff" data-value="0" data-index="{{ forloop.counter }}" data-module="new_views" title="Неактивен">
+                  {% else %}
+                    <img src="{% static 'admin_panel/img/play_gray.png' %}" class="icon-16 toggle-icon-tariff" data-value="1" data-index="{{ forloop.counter }}" data-module="new_views" title="Активен">
+                    <img src="{% static 'admin_panel/img/pause.png' %}" class="icon-16 toggle-icon-tariff" data-value="0" data-index="{{ forloop.counter }}" data-module="new_views" title="Неактивен">
+                  {% endif %}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            
+            <!-- Кнопка добавления тарифа -->
+            <div class="mb-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm add-tariff" data-module="new_views">Добавить тариф</button>
+            </div>
+            
+            <!-- Свитч новых просмотров -->
+            <div class="d-flex align-items-center" style="gap:12px;">
+              <span>Выкл</span>
+              <label class="switch switch-green mb-0">
+                <input type="checkbox" name="is_active_new_views" {% if settings.is_active_new_views %}checked{% endif %}>
+                <span class="slider round"></span>
+              </label>
+              <span>Вкл</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Разделитель -->
+        <div class="module-divider"></div>
+
+        <!-- Подписчики каналов-групп -->
+        <div class="form-row module-section">
+          <div class="left">
+            <div class="module-name">Подписчики каналов-групп</div>
+          </div>
+          <div class="right">
+            <!-- Список тарифов -->
+            <div class="tariffs-list" data-module="subscribers">
+              {% for tariff in tariffs.subscribers %}
+              <div class="tariff-row d-flex align-items-center gap-2 mb-2">
+                <!-- Галочка "Основной" -->
+                <div class="d-flex align-items-center primary-checkbox-container">
+                  <label class="primary-checkbox-label">
+                    <input type="checkbox" class="primary-checkbox" data-module="subscribers" 
+                           {% if tariff.is_primary %}checked{% endif %}>
+                    <span class="checkmark"></span>
+                  </label>
+                  <!-- Скрытое поле для отправки значения -->
+                  <input type="hidden" name="subscribers_primary_{{ forloop.counter }}" 
+                         value="{% if tariff.is_primary %}1{% else %}0{% endif %}">
+                </div>
+
+                <span class="text-muted">ID =</span>
+                <input type="number" name="subscribers_id_{{ forloop.counter }}" class="form-control form-control-sm" style="width:80px;" value="{{ tariff.service_id }}">
+                <span class="text-muted">Лимит: от</span>
+                <input type="number" name="subscribers_min_{{ forloop.counter }}" class="form-control form-control-sm" style="width:80px;" value="{{ tariff.min_limit }}">
+                <span class="text-muted">Тариф за 1000:</span>
+                <input type="number" step="0.01" name="subscribers_tariff_{{ forloop.counter }}" class="form-control form-control-sm" style="width:80px;" value="{{ tariff.price_per_1000 }}">
+                <span class="text-muted">Комментарий:</span>
+                <input type="text" name="subscribers_comment_{{ forloop.counter }}" class="form-control form-control-sm tariff-comment" value="{{ tariff.comment }}">
+
+                <input type="hidden" name="subscribers_active_{{ forloop.counter }}" value="{% if tariff.is_active %}1{% else %}0{% endif %}">
+                <div class="target-actions text-nowrap">
+                  {% if tariff.is_active %}
+                    <img src="{% static 'admin_panel/img/play.png' %}" class="icon-16 toggle-icon-tariff" data-value="1" data-index="{{ forloop.counter }}" data-module="subscribers" title="Активен">
+                    <img src="{% static 'admin_panel/img/pause_gray.png' %}" class="icon-16 toggle-icon-tariff" data-value="0" data-index="{{ forloop.counter }}" data-module="subscribers" title="Неактивен">
+                  {% else %}
+                    <img src="{% static 'admin_panel/img/play_gray.png' %}" class="icon-16 toggle-icon-tariff" data-value="1" data-index="{{ forloop.counter }}" data-module="subscribers" title="Активен">
+                    <img src="{% static 'admin_panel/img/pause.png' %}" class="icon-16 toggle-icon-tariff" data-value="0" data-index="{{ forloop.counter }}" data-module="subscribers" title="Неактивен">
+                  {% endif %}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            
+            <!-- Кнопка добавления тарифа -->
+            <div class="mb-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm add-tariff" data-module="subscribers">Добавить тариф</button>
+            </div>
+            
+            <!-- Свитч подписчиков -->
+            <div class="d-flex align-items-center" style="gap:12px;">
+              <span>Выкл</span>
+              <label class="switch switch-green mb-0">
+                <input type="checkbox" name="is_active_subscribers" {% if settings.is_active_subscribers %}checked{% endif %}>
+                <span class="slider round"></span>
+              </label>
+              <span>Вкл</span>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /form-rows тарифных планов -->
+
+      <!-- === АКТИВИРОВАН В КАНАЛАХ === -->
+      <div class="section-bar">Активирован в каналах</div>
+      <div class="form-rows">
+        <div class="form-row channels-section">
+          <div class="left d-flex align-items-center justify-content-between">
+            <div>Бот сервиса добавлен в каналы</div>
+            <button type="button" class="btn btn-outline-primary btn-sm" id="refreshChannelsBtn">Обновить список</button>
+          </div>
+          <div class="right">
+            <div class="channels-grid">
+              {% for ch in channels %}
+              <div class="channel-item d-flex align-items-center justify-content-between p-2 border rounded mb-2">
+                <span class="channel-name">{{ ch.target__name }}</span>
+              </div>
+              {% empty %}
+              <div class="text-muted small">Нет активных каналов</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- === СТАТИСТИКА СЕРВИСА === -->
+      <div class="section-bar">Статистика сервиса</div>
+      <div class="form-rows">
+        <div class="form-row">
+          <div class="left">Статистика</div>
+          <div class="right">
+            <a href="{% url 'admin_panel:twiboost_stats_view' %}" class="btn btn-outline-primary btn-sm">Перейти к статистике</a>
+          </div>
+        </div>
+      </div>
+
+    </form>
+  </div>
+</section>
+
+<style>
+.section-bar{
+  background:#e9ecef;
+  color:#2e3a46;
+  font-weight:600;
+  padding:8px 12px;
+  margin:14px 0 6px;
+  border-radius:4px;
+  border:1px solid #dee2e6;
+}
+.form-rows{
+  border:1px solid #e9ecef;
+  border-radius:6px;
+  background:#fff;
+  margin-bottom:8px;
+}
+.form-row{
+  display:grid;
+  grid-template-columns:240px 1fr;
+  grid-gap:12px;
+  align-items:start;
+  padding:10px 12px;
+  border-top:1px solid #f2f4f6;
+}
+.form-row:first-child{border-top:0;}
+.form-row .left{
+  font-weight:600;
+  color:#495057;
+}
+.icon-16{
+  width:16px;
+  height:16px;
+  cursor:pointer;
+  opacity:.9;
+}
+.icon-16:hover{opacity:1;}
+.status-dot{
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  display:inline-block;
+}
+.status-dot.green{background:#28a745;}
+.status-dot.red{background:#dc3545;}
+
+/* Стили для модулей тарифов */
+.module-section {
+  padding: 15px 12px;
+}
+.module-name {
+  font-weight: 600;
+  color: #2e3a46;
+}
+.module-divider {
+  height: 1px;
+  background: #e9ecef;
+  margin: 0 12px;
+}
+.tariff-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: #f8f9fa;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+  margin-left: 0;
+}
+
+/* Стили для галочки "Основной" */
+.primary-checkbox-container {
+  margin-right: 8px;
+  width: 24px;
+  height: 24px;
+}
+
+.primary-checkbox-label {
+  display: inline-block;
+  position: relative;
+  cursor: pointer;
+  height: 24px;
+  width: 24px;
+  margin: 0;
+}
+
+.primary-checkbox-label input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.checkmark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 24px;
+  width: 24px;
+  background-color: transparent;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+/* Прозрачная серая галочка - неактивна */
+.checkmark:before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 3px;
+  width: 7px;
+  height: 12px;
+  border: solid #ccc;
+  border-width: 0 3px 3px 0;
+  transform: rotate(45deg);
+  opacity: 0.8; /* Почти прозрачная */
+  transition: all 0.2s;
+}
+
+.primary-checkbox-label:hover .checkmark:before {
+  opacity: 1; /* Чуть менее прозрачная при наведении */
+}
+
+/* Зелёная галочка - активна */
+.primary-checkbox-label input:checked ~ .checkmark:before {
+  border-color: #4cd964;
+  opacity: 1;
+}
+
+/* Стили для свитча */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+}
+input:checked + .slider {
+  background-color: #28a745;
+}
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+.slider.round {
+  border-radius: 24px;
+}
+.slider.round:before {
+  border-radius: 50%;
+}
+.switch-blue input:checked + .slider { background-color: #007bff; }
+.switch-green input:checked + .slider { background-color: #28a745; }
+
+/* Стили для каналов */
+.channels-section .left {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+.channels-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.channel-item {
+  background: #f8f9fa;
+  min-height: 40px;
+}
+.channel-item:hover {
+  background: #e9ecef;
+}
+.channel-name {
+  font-size: 0.9em;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Увеличенные отступы между элементами тарифов */
+.tariff-row span.text-muted {
+  margin-right: 6px;
+}
+
+.tariff-row input.form-control-sm {
+  margin-right: 8px;
+}
+
+/* Добавляем поле комментариев */
+.tariff-row .tariff-comment {
+  flex: 1;
+  min-width: 180px;
+}
+
+/* Отступ между play/pause и полями */
+.tariff-row .target-actions {
+  margin-left: 10px;
+}
+
+/* Свитчи: чуть больше пространства вокруг текста */
+.switch + .text-muted, .text-muted + .switch {
+  margin-left: 4px;
+  margin-right: 4px;
+}
+
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const baseImg = "{% static 'admin_panel/img/' %}";
+
+  // === Обработка галочек "Основной" ===
+  document.addEventListener("click", (e) => {
+    if (e.target.classList.contains('primary-checkbox')) {
+      const checkbox = e.target;
+      const module = checkbox.dataset.module;
+      const container = checkbox.closest('.primary-checkbox-container');
+      const hiddenInput = container.querySelector('input[type="hidden"]');
+      
+      // Если эта галочка включается
+      if (checkbox.checked) {
+        // Снимаем все остальные галочки "Основной" в этом модуле
+        document.querySelectorAll(`.primary-checkbox[data-module="${module}"]`).forEach(otherCheckbox => {
+          if (otherCheckbox !== checkbox) {
+            otherCheckbox.checked = false;
+            // Обновляем соответствующие скрытые поля
+            const otherContainer = otherCheckbox.closest('.primary-checkbox-container');
+            const otherHiddenInput = otherContainer.querySelector('input[type="hidden"]');
+            otherHiddenInput.value = "0";
+          }
+        });
+        
+        // Устанавливаем значение для текущей галочки
+        hiddenInput.value = "1";
+      } else {
+        // Если галочка выключается
+        hiddenInput.value = "0";
+      }
+    }
+  });
+
+  // === Переключение статуса тарифа ===
+  document.querySelectorAll(".toggle-icon-tariff").forEach(icon => {
+    icon.addEventListener("click", () => {
+      const module = icon.dataset.module;
+      const index = icon.dataset.index;
+      const activeNow = icon.dataset.value === "1";
+      const hiddenInput = document.querySelector(`input[name="${module}_active_${index}"]`);
+      
+      if (hiddenInput) {
+        hiddenInput.value = activeNow ? "1" : "0";
+
+        const row = icon.closest('.tariff-row');
+        const play = row.querySelector('.toggle-icon-tariff[data-value="1"]');
+        const pause = row.querySelector('.toggle-icon-tariff[data-value="0"]');
+
+        if (activeNow) {
+          play.src = baseImg + "play.png";
+          pause.src = baseImg + "pause_gray.png";
+        } else {
+          play.src = baseImg + "play_gray.png";
+          pause.src = baseImg + "pause.png";
+        }
+      }
+    });
+  });
+
+  // === Добавление нового тарифа ===
+  document.querySelectorAll(".add-tariff").forEach(btn => {
+    btn.addEventListener("click", function() {
+      const module = this.dataset.module;
+      // Ищем список тарифов внутри того же правого блока
+      const rightBlock = this.closest('.right');
+      const list = rightBlock.querySelector('.tariffs-list');
+      
+      if (!list) {
+        console.error('Tariff list not found for module:', module);
+        return;
+      }
+      
+      const index = list.querySelectorAll('.tariff-row').length + 1;
+      
+      const newRow = document.createElement('div');
+      newRow.className = 'tariff-row d-flex align-items-center gap-2 mb-2';
+      newRow.innerHTML = `
+        <div class="d-flex align-items-center primary-checkbox-container">
+          <label class="primary-checkbox-label">
+            <input type="checkbox" class="primary-checkbox" data-module="${module}">
+            <span class="checkmark"></span>
+          </label>
+          <!-- Скрытое поле для отправки значения -->
+          <input type="hidden" name="${module}_primary_${index}" value="0">
+        </div>
+        <span class="text-muted">ID =</span>
+        <input type="number" name="${module}_id_${index}" class="form-control form-control-sm" style="width:80px;" value="0">
+        <span class="text-muted">Лимит: от</span>
+        <input type="number" name="${module}_min_${index}" class="form-control form-control-sm" style="width:80px;" value="0">
+        <span class="text-muted">Тариф за 1000:</span>
+        <input type="number" step="0.01" name="${module}_tariff_${index}" class="form-control form-control-sm" style="width:80px;" value="0">
+        <span class="text-muted">Комментарий:</span>
+        <input type="text" name="${module}_comment_${index}" class="form-control form-control-sm tariff-comment" value="">
+        <input type="hidden" name="${module}_active_${index}" value="1">
+        <div class="target-actions text-nowrap">
+          <img src="${baseImg}play.png" class="icon-16 toggle-icon-tariff" data-value="1" data-index="${index}" data-module="${module}" title="Активен">
+          <img src="${baseImg}pause_gray.png" class="icon-16 toggle-icon-tariff" data-value="0" data-index="${index}" data-module="${module}" title="Неактивен">
+        </div>
+      `;
+      list.appendChild(newRow);
+
+      // Добавляем обработчик для новой галочки "Основной"
+      newRow.querySelector('.primary-checkbox').addEventListener('click', function(e) {
+        const module = this.dataset.module;
+        const container = this.closest('.primary-checkbox-container');
+        const hiddenInput = container.querySelector('input[type="hidden"]');
+        
+        if (this.checked) {
+          // Снимаем все остальные галочки "Основной" в этом модуле
+          document.querySelectorAll(`.primary-checkbox[data-module="${module}"]`).forEach(otherCheckbox => {
+            if (otherCheckbox !== this) {
+              otherCheckbox.checked = false;
+              // Обновляем соответствующие скрытые поля
+              const otherContainer = otherCheckbox.closest('.primary-checkbox-container');
+              const otherHiddenInput = otherContainer.querySelector('input[type="hidden"]');
+              otherHiddenInput.value = "0";
+            }
+          });
+          
+          // Устанавливаем значение для текущей галочки
+          hiddenInput.value = "1";
+        } else {
+          hiddenInput.value = "0";
+        }
+      });
+
+      // Добавляем обработчики для новых иконок
+      newRow.querySelectorAll('.toggle-icon-tariff').forEach(icon => {
+        icon.addEventListener('click', function() {
+          const module = this.dataset.module;
+          const index = this.dataset.index;
+          const activeNow = this.dataset.value === "1";
+          const hiddenInput = document.querySelector(`input[name="${module}_active_${index}"]`);
+          
+          if (hiddenInput) {
+            hiddenInput.value = activeNow ? "1" : "0";
+
+            const row = this.closest('.tariff-row');
+            const play = row.querySelector('.toggle-icon-tariff[data-value="1"]');
+            const pause = row.querySelector('.toggle-icon-tariff[data-value="0"]');
+
+            if (activeNow) {
+              play.src = baseImg + "play.png";
+              pause.src = baseImg + "pause_gray.png";
+            } else {
+              play.src = baseImg + "play_gray.png";
+              pause.src = baseImg + "pause.png";
+            }
+          }
+        });
+      });
+    });
+  });
+
+  // === Кнопка "Обновить список каналов" ===
+  const refreshChannelsBtn = document.getElementById("refreshChannelsBtn");
+  if (refreshChannelsBtn) {
+    refreshChannelsBtn.addEventListener("click", () => {
+      refreshChannelsBtn.disabled = true;
+      refreshChannelsBtn.textContent = "Обновление...";
+      
+      // Здесь можно добавить логику обновления списка каналов
+      setTimeout(() => {
+        refreshChannelsBtn.disabled = false;
+        refreshChannelsBtn.textContent = "Обновить список";
+      }, 1000);
+    });
+  }
+
+  // === Кнопка "Обновить" рядом с Токеном биржи ===
+  const refreshStatusBtn = document.getElementById("refreshStatusBtn");
+  const apiStatusDot = document.getElementById("apiStatusDot");
+
+  if (refreshStatusBtn) {
+    refreshStatusBtn.addEventListener("click", () => {
+      refreshStatusBtn.disabled = true;
+      refreshStatusBtn.textContent = "Обновление...";
+
+      fetch("{% url 'admin_panel:booster_check_ajax' %}?mode=status")
+        .then(r => r.json())
+        .then(data => {
+          apiStatusDot.classList.remove("green","red");
+          apiStatusDot.classList.add(data.status === "ok" ? "green" : "red");
+        })
+        .finally(() => {
+          refreshStatusBtn.disabled = false;
+          refreshStatusBtn.textContent = "Обновить";
+        });
+    });
+  }
+
+  // === Кнопка "Обновить" рядом с балансом ===
+  const refreshBalanceBtn = document.getElementById("refreshBalanceBtn");
+  const balanceValue = document.getElementById("balanceValue");
+  const lastCheck = document.getElementById("lastCheck");
+
+  if (refreshBalanceBtn) {
+    refreshBalanceBtn.addEventListener("click", () => {
+      refreshBalanceBtn.disabled = true;
+      refreshBalanceBtn.textContent = "Обновление...";
+
+      fetch("{% url 'admin_panel:booster_check_ajax' %}?mode=balance")
+        .then(r => r.json())
+        .then(data => {
+          if (data.balance !== null && data.balance !== undefined) {
+            balanceValue.textContent = data.balance;
+          }
+          if (data.last_balance_check) {
+            lastCheck.textContent = data.last_balance_check;
+          }
+          if (data.status){
+            apiStatusDot.classList.remove("green","red");
+            apiStatusDot.classList.add(data.status === "ok" ? "green" : "red");
+          }
+        })
+        .finally(() => {
+          refreshBalanceBtn.disabled = false;
+          refreshBalanceBtn.textContent = "Обновить";
+        });
+    });
+  }
+});
+</script>
+{% endblock %}

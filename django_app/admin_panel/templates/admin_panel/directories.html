@@ -1,0 +1,132 @@
+{% extends "adminlte/base.html" %}
+{% load static %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <h1 class="mb-4">Справочники</h1>
+
+    <div class="row">
+
+      <!-- Группы -->
+      <div class="col-md-4 col-sm-6">
+        <div class="small-box bg-info">
+          <div class="inner">
+            <h3>Группы ТГ</h3>
+            <p>Управление списком Telegram-групп</p>
+          </div>
+          <div class="icon"><i class="fas fa-users"></i></div>
+          <a href="{% url 'admin_panel:entities_page' %}" class="small-box-footer">
+            Перейти <i class="fas fa-arrow-circle-right"></i>
+          </a>
+        </div>
+      </div>
+
+      <!-- Каналы -->
+      <div class="col-md-4 col-sm-6">
+        <div class="small-box bg-success">
+          <div class="inner">
+            <h3>Каналы ТГ</h3>
+            <p>Все каналы и связанные данные</p>
+          </div>
+          <div class="icon"><i class="fas fa-bullhorn"></i></div>
+          <a href="{% url 'admin_panel:entities_page' %}" class="small-box-footer">
+            Перейти <i class="fas fa-arrow-circle-right"></i>
+          </a>
+        </div>
+      </div>
+
+      <!-- Боты -->
+      <div class="col-md-4 col-sm-6">
+        <div class="small-box bg-warning">
+          <div class="inner">
+            <h3>Боты</h3>
+            <p>Список доступных Telegram-ботов</p>
+          </div>
+          <div class="icon"><i class="fas fa-robot"></i></div>
+          <a href="{% url 'admin_panel:bots_page' %}" class="small-box-footer">
+            Перейти <i class="fas fa-arrow-circle-right"></i>
+          </a>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="row">
+      <!-- Аккаунты -->
+      <div class="col-md-6">
+        <div class="card card-outline card-primary">
+          <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-user-circle mr-2"></i>Аккаунты</h3>
+          </div>
+          <div class="card-body">
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item"><a href="#">Чужие</a></li>
+              <li class="list-group-item"><a href="#">Наши</a></li>
+              <li class="list-group-item"><a href="#">Наши Премиум</a></li>
+              <li class="list-group-item"><a href="#">Нормализация</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- API -->
+      <div class="col-md-6">
+        <div class="card card-outline card-secondary">
+          <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-plug mr-2"></i>API</h3>
+          </div>
+          <div class="card-body">
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item"><a href="#">TG-Stat</a></li>
+              <li class="list-group-item"><a href="#">РегРу</a></li>
+              <li class="list-group-item"><a href="#">twiboost.com</a></li>
+              <li class="list-group-item"><a href="#">XE.com</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <!-- Страны -->
+      <div class="col-md-4 col-sm-6">
+        <div class="card card-outline card-info">
+          <div class="card-header"><h3 class="card-title">Страны</h3></div>
+          <div class="card-body">
+            <p>Справочник стран для сегментации каналов и групп</p>
+            <a href="{% url 'admin_panel:countries_page' %}" class="btn btn-info btn-block">Перейти</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Категории -->
+      <div class="col-md-4 col-sm-6">
+        <div class="card card-outline card-info">
+          <div class="card-header"><h3 class="card-title">Категории</h3></div>
+          <div class="card-body">
+            <p>Категоризация каналов и групп по темам</p>
+            <a href="{% url 'admin_panel:categories_page' %}" class="btn btn-info btn-block">Перейти</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Прочее -->
+      <div class="col-md-4 col-sm-6">
+        <div class="card card-outline card-info">
+          <div class="card-header"><h3 class="card-title">Прочее</h3></div>
+          <div class="card-body">
+            <ul class="list-unstyled">
+              <li><a href="#">Доноры ТГ</a></li>
+              <li><a href="#">Источники ТГ</a></li>
+              <li><a href="#">Базовые настройки</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+{% endblock %}
+

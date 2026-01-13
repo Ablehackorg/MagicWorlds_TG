@@ -1,0 +1,29 @@
+/* === КНОПКИ === */
+
+/* Кнопка добавления */
+.btn-add {
+  background-color: #cccccc !important;
+  color: #444 !important;
+  border: 2px solid #f0f0f0 !important;
+  font-weight: 400 !important;
+  padding: 6px 14px;
+  border-radius: 6px;
+  box-shadow: none !important;
+}
+
+.btn-add i {
+  color: inherit !important;
+}
+
+.btn-add:hover {
+  background-color: #b3b3b3 !important;
+  border: 2px solid #cccccc !important;
+  color: #222 !important;
+}
+
+/* Активные кнопки в группах */
+.btn-group .btn.active {
+  background: #007bff !important;
+  color: #fff !important;
+  border-color: #007bff !important;
+}

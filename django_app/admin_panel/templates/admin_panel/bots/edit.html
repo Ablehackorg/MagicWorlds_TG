@@ -1,0 +1,988 @@
+{% extends "adminlte/base.html" %}
+{% load static %}
+{% load filters %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+
+    <!-- ===== Заголовок ===== -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <!-- слева: заголовок + сохранить/отмена -->
+      <div class="d-flex align-items-center">
+        <h1 class="mb-0 mr-3">Редактирование бота #{{ bot.id }}</h1>
+        <div class="btn-toolbar" role="toolbar">
+          <button type="submit" form="main-form" class="btn btn-success mr-2">Сохранить изменения</button>
+          <a href="{% url 'admin_panel:bots_page' %}" class="btn btn-secondary">Вернуться к списку</a>
+        </div>
+      </div>
+
+      <!-- справа: кнопка синхронизации -->
+      <div class="d-flex align-items-center" style="gap:12px;">
+        <button type="button" class="btn btn-primary" id="syncBtn">
+          <i class="fas fa-sync-alt mr-1"></i> Синхронизировать с Telegram
+        </button>
+      </div>
+    </div>
+
+    <!-- ===== Форма ===== -->
+    <form method="post" id="main-form" enctype="multipart/form-data">
+      {% csrf_token %}
+      
+      <!-- === БЛОК: Публичный профиль === -->
+      <div class="section-bar">Публичный профиль</div>
+      <div class="form-rows bordered-box p-3 bg-white rounded mb-4">
+        
+        <!-- Ссылка на пользователя -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Ссылка на пользователя</div>
+          <div class="right">
+            <input type="text" class="form-control" value="{{ bot.telegram_info.username|default:'Нет никнейма' }}" readonly style="background-color:#e9ecef;">
+          </div>
+        </div>
+
+        <!-- User ID -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">User ID</div>
+          <div class="right d-flex align-items-center" style="gap:12px;">
+            <input type="text" class="form-control" value="{{ bot.telegram_info.user_id|default:'Неизвестно' }}" readonly style="background-color:#e9ecef; width:150px;">
+            <button type="button" class="btn btn-primary" id="refreshDataBtn">Обновить</button>
+          </div>
+        </div>
+
+        <!-- Name -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Name</div>
+          <div class="right d-flex align-items-center" style="gap:12px;">
+            <input type="text" name="last_name" class="form-control" value="{{ bot.last_name|default:'' }}" placeholder="Фамилия" style="width:200px;">
+            <input type="text" name="first_name" class="form-control" value="{{ bot.first_name|default:'' }}" placeholder="Имя" required style="width:200px;">
+          </div>
+        </div>
+
+        <!-- Username -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Username</div>
+          <div class="right">
+            <input type="text" name="username" class="form-control" 
+                   value="{{ bot.username|default:'' }}" 
+                   placeholder="@username или просто username">
+          </div>
+        </div>
+
+        <!-- Profile photo -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Profile photo</div>
+          <div class="right d-flex align-items-start" style="gap:20px;">
+            <!-- Квадратный блок фото -->
+            <div class="image-upload" style="max-width:250px; flex-shrink: 0;">
+              <input type="file" name="avatar" id="avatar" class="d-none" accept="image/*">
+              <div id="preview" class="preview-box d-flex align-items-center justify-content-center" 
+                   style="width:150px;height:150px;border:1px solid #ddd; border-radius:4px; background-color:#f8f9fa;">
+                {% if bot.avatar and bot.avatar.url %}
+                    <img src="{{ bot.avatar.url }}" alt="preview" style="width:100%;height:100%;object-fit:cover;border-radius:4px;">
+                {% else %}
+                    <span class="text-muted">Нет фото</span>
+                {% endif %}
+              </div>
+              <div class="mt-2 d-flex" style="gap:8px;">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="pickPhotoBtn">Загрузить фото</button>
+                {% if bot.avatar_url %}
+                <button type="button" class="btn btn-sm btn-outline-danger" id="clearPhotoBtn">Очистить</button>
+                {% endif %}
+              </div>
+            </div>
+            
+            <!-- Информация о фото -->
+            <div class="flex-grow-1">
+              <div class="text-muted small">
+                Рекомендуемый размер: 150×150 px<br>
+                Форматы: JPG, PNG, GIF, WebP<br>
+                Максимальный размер: 5MB
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Информация "О себе" -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Информация "О себе"</div>
+          <div class="right">
+            <textarea name="bio" id="bio" class="form-control" rows="3" maxlength="70" 
+                      placeholder="Описание профиля">{{ bot.bio|default:'' }}</textarea>
+            <div class="d-flex justify-content-end mt-2">
+              <small class="form-text text-muted" id="bio-counter">0/70 символов</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Registration -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Registration</div>
+          <div class="right d-flex align-items-center" style="gap:12px;">
+            <input type="text" class="form-control" value="{{ bot.created_at|date:'d.m.Y' }}" readonly style="width:150px;background-color:#e9ecef;">
+            <span>длительность</span>
+            <input type="text" class="form-control" value="{{ registration_duration }} мес." readonly style="width:100px;background-color:#e9ecef;">
+          </div>
+        </div>
+
+        <!-- Пол -->
+        <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;">Пол</div>
+          <div class="right d-flex align-items-center" style="gap:12px;">
+            <span>Муж</span>
+            <label class="switch switch-green mb-0">
+              <input type="checkbox" name="gender" value="male" {% if bot.gender == 'female' %}checked{% endif %}>
+              <span class="slider round"></span>
+            </label>
+            <span>Жен</span>
+            <input type="hidden" name="gender_value" value="{{ bot.gender|default:'male' }}">
+          </div>
+        </div>
+
+        <!-- Дата рождения -->
+        <div class="d-flex align-items-center mb-3">
+          <div class="left" style="width:200px;">Дата рождения</div>
+          <div class="right" style="flex:1;">
+            <input type="date"
+                   name="birthday"
+                   class="form-control"
+                   value="{{ bot.birthday|date:'Y-m-d'|default:'' }}"
+                   style="max-width: 200px; width: 200px; min-width: 200px;">
+          </div>
+        </div>
+
+
+      </div>
+
+      <!-- === БЛОК: Пометки === -->
+      <div class="section-bar">Пометки</div>
+      <div class="form-rows bordered-box p-3 bg-white rounded mb-4">
+        
+        <!-- Статус в Телеграме -->
+        <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;">Статус в Телеграме</div>
+          <div class="right d-flex align-items-center" style="gap:12px;">
+            <span>Обычный</span>
+            <label class="switch switch-green mb-0">
+              <input type="checkbox" name="telegram_status" value="premium" {% if bot.telegram_status == 'premium' %}checked{% endif %}>
+              <span class="slider round"></span>
+            </label>
+            <span>Премиум</span>
+            <input type="hidden" name="telegram_status_value" value="{{ bot.telegram_status|default:'regular' }}">
+            <span class="text-muted ml-3">данные на {{ bot.last_sync_at|date:'d.m.Y'|default:'--.--.----' }}</span>
+          </div>
+        </div>
+
+        <!-- Текущий Статус -->
+        <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;">Текущий Статус</div>
+          <div class="right d-flex flex-wrap align-items-center" style="gap:8px;">
+            {% for value, text in status_choices %}
+              <label class="circle-day d-flex align-items-center mb-1" style="gap:4px;">
+                <input type="radio" name="current_status" value="{{ value }}" 
+                       {% if bot.current_status == value %}checked{% endif %}>
+                <span class="dot"></span>
+                <span class="day-label">{{ text }}</span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Страна -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Страна</div>
+          <div class="right">
+            <select name="country" id="country" class="form-control" style="max-width:300px;">
+              <option value="">Выберите страну из списка</option>
+              {% for country in countries %}
+                <option value="{{ country.name }}" {% if bot.country == country.name %}selected{% endif %}>
+                  {{ country.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Чей -->
+        <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;">Чей</div>
+          <div class="right d-flex flex-wrap align-items-center" style="gap:8px;">
+            {% for value, text in owner_choices %}
+              <label class="circle-day d-flex align-items-center mb-1" style="gap:4px;">
+                <input type="radio" name="owner_type" value="{{ value }}" 
+                       {% if bot.owner_type == value %}checked{% endif %}>
+                <span class="dot"></span>
+                <span class="day-label">{{ text }}</span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Пометки об аккаунте -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Пометки об аккаунте</div>
+          <div class="right">
+            <textarea name="notes" id="notes" class="form-control" rows="4" 
+                      placeholder="Внутренние заметки об аккаунте">{{ bot.notes|default:'' }}</textarea>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- === БЛОК: История имени аккаунта === -->
+      <div class="section-bar">История имени аккаунта</div>
+      <div class="form-rows bordered-box p-3 bg-white rounded mb-4">
+        
+        <!-- Юзернейм -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Юзернейм</div>
+          <div class="right">
+            <button type="button" class="btn btn-primary mb-2">Запустить скрипт</button>
+            <span class="text-muted ml-3">данные на {{ username_history_date|date:'d.m.Y'|default:'--.--.----' }}</span>
+            
+            <!-- Прогресс бар (пример из channel_sync) -->
+            <div class="progress mt-2" style="height: 20px;">
+              <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                   role="progressbar" style="width: {{ username_progress }}%">
+                {{ username_progress }}%
+              </div>
+            </div>
+            
+            <!-- История юзернеймов -->
+            <div class="mt-3">
+              {% for history in username_history %}
+              <div class="history-item d-flex align-items-center gap-3 mb-1">
+                <span class="text-muted">{{ history.username }}</span>
+                <span class="text-muted small">с {{ history.start_date|date:'d.m.Y' }}</span>
+                <span class="text-muted small">длительность {{ history.duration_days }} дней</span>
+              </div>
+              {% empty %}
+              <div class="text-muted">История юзернеймов отсутствует</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Имя пользователя -->
+        <div class="form-row">
+          <div class="left" style="width:220px;">Имя пользователя</div>
+          <div class="right">
+            <!-- История имен -->
+            <div class="mt-2">
+              {% for history in name_history %}
+              <div class="history-item d-flex align-items-center gap-3 mb-1">
+                <span class="text-muted">{{ history.name }}</span>
+                <span class="text-muted small">с {{ history.start_date|date:'d.m.Y' }}</span>
+                <span class="text-muted small">длительность {{ history.duration_days }} дней</span>
+              </div>
+              {% empty %}
+              <div class="text-muted">История имен отсутствует</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- === БЛОК: Доступен в плагинах === -->
+      <div class="section-bar">Доступен в плагинах (всего {{ plugins|length }})</div>
+      <div class="form-rows bordered-box p-3 bg-white rounded mb-4">
+        
+        <div class="form-row">
+          <div class="right">
+            <div id="plugins-container" class="mb-3">
+              {% for bot_plugin in plugins %}
+                <div class="plugin-select-wrapper mb-2" data-id="{{ bot_plugin.id }}">
+                  <div class="d-flex align-items-center" style="gap:10px;">
+                    <select name="plugins[]" class="form-control plugin-select" style="max-width:400px;">
+                      <option value="">Выберите плагин из списка</option>
+                      {% for plugin in all_plugins %}
+                        <option value="{{ plugin.id }}" 
+                                {% if bot_plugin.plugin.id == plugin.id %}selected{% endif %}>
+                          {{ plugin.name }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                    <button type="button" class="btn btn-outline-danger btn-sm remove-plugin" 
+                            title="Удалить плагин">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </div>
+                </div>
+              {% empty %}
+                <div class="plugin-select-wrapper mb-2">
+                  <div class="d-flex align-items-center" style="gap:10px;">
+                    <select name="plugins[]" class="form-control plugin-select" style="max-width:400px;">
+                      <option value="">Выберите плагин из списка</option>
+                      {% for plugin in all_plugins %}
+                        <option value="{{ plugin.id }}">{{ plugin.name }}</option>
+                      {% endfor %}
+                    </select>
+                    <button type="button" class="btn btn-outline-danger btn-sm remove-plugin" 
+                            title="Удалить плагин">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+            
+            <button type="button" class="btn btn-outline-primary" id="add-plugin-btn">
+              <i class="fas fa-plus"></i> Добавить плагин
+            </button>
+            
+            <input type="hidden" name="remove_plugins" id="remove_plugins" value="">
+          </div>
+        </div>
+
+      </div>
+
+      <!-- === БЛОК: Админ в группах === -->
+      <div class="section-bar">Админ в группах (всего {{ admin_groups|length }})</div>
+      <div class="form-rows bordered-box p-3 bg-white rounded mb-4">
+        
+        <div class="form-row">
+          <div class="left" style="width:220px;">Админ в группах</div>
+          <div class="right">
+            <button type="button" class="btn btn-primary btn-sm mb-3" id="refreshAdminGroupsBtn">
+              Обновить
+            </button>
+            <span class="text-muted ml-3">данные на {{ admin_groups_date|date:'d.m.Y'|default:'--.--.----' }}</span>
+            
+            <div id="admin-groups-container" class="channels-grid">
+              {% for group in admin_groups %}
+                <div class="channel-item d-flex align-items-center justify-content-between p-2 border rounded mb-2">
+                  <span class="channel-name">{{ group.name }}</span>
+                </div>
+              {% empty %}
+                <div class="text-muted small">Нет групп с правами администратора</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- === БЛОК: Подписчик групп === -->
+      <div class="section-bar">Подписчик групп (всего {{ subscriber_groups_total }})</div>
+      <div class="form-rows bordered-box p-3 bg-white rounded mb-4">
+        
+        <div class="form-row">
+          <div class="left" style="width:220px;">Подписчик групп</div>
+          <div class="right">
+            <button type="button" class="btn btn-primary btn-sm mb-3" id="refreshSubscriberGroupsBtn">
+              Запустить поиск
+            </button>
+            
+            <!-- Переключатель "В т.ч. Наши" -->
+            <div class="d-flex align-items-center mb-3" style="gap:12px;">
+              <span>В т.ч. Наши</span>
+              <div class="target-actions text-nowrap">
+                <img src="{% static 'admin_panel/img/play.png' %}" class="icon-16 toggle-icon-groups" data-value="1" title="Показать все">
+                <img src="{% static 'admin_panel/img/pause_gray.png' %}" class="icon-16 toggle-icon-groups" data-value="0" title="Только наши">
+              </div>
+              <input type="hidden" name="show_all_groups" value="1" id="show_all_groups">
+            </div>
+            
+            <div class="channels-grid" id="groups-container">
+              {% for group in subscriber_groups %}
+                <div class="channel-item d-flex align-items-center justify-content-between p-2 border rounded mb-2">
+                  <span class="channel-name">{{ group.name }}</span>
+                </div>
+              {% empty %}
+                <div class="text-muted small">Нет групп в подписках</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- === БЛОК: Предупреждения === -->
+      <div class="section-bar">Предупреждения (всего {{ warnings|length }})</div>
+      <div class="form-rows bordered-box p-3 bg-white rounded mb-4">
+        
+        <div class="form-row">
+          <div class="left" style="width:220px;">Всего нарушений: {{ warnings|length }}</div>
+          <div class="right">
+            <div class="warnings-list">
+              {% for warning in warnings %}
+              <div class="warning-item d-flex align-items-center gap-3 mb-2 p-2 border rounded">
+                <span class="text-muted small">{{ warning.date|date:'d.m.Y' }}</span>
+                <span class="text-muted">{{ warning.channel_name }}</span>
+                <span class="text-muted">{{ warning.reason }}</span>
+              </div>
+              {% empty %}
+              <div class="text-muted small">Нет нарушений</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </form>
+
+  </div>
+</section>
+
+<style>
+.section-bar{
+  background:#e9ecef;
+  color:#2e3a46;
+  font-weight:600;
+  padding:8px 12px;
+  margin:14px 0 6px;
+  border-radius:4px;
+  border:1px solid #dee2e6;
+}
+.form-rows{
+  border:1px solid #e9ecef;
+  border-radius:6px;
+  background:#fff;
+}
+.form-row{
+  display:flex;
+  align-items:center;
+  padding:10px 12px;
+  border-top:1px solid #f2f4f6;
+}
+.form-row:first-child{border-top:0;}
+.form-row .left{ 
+  font-weight:600;
+  color:#495057;
+  min-width:220px;
+}
+.form-row .right{ 
+  flex:1;
+}
+.icon-16{
+  width:16px;
+  height:16px;
+  cursor:pointer;
+  opacity:.9;
+}
+.icon-16:hover{opacity:1;}
+
+/* Стили для свитча */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+}
+input:checked + .slider {
+  background-color: #28a745;
+}
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+.slider.round {
+  border-radius: 24px;
+}
+.slider.round:before {
+  border-radius: 50%;
+}
+.switch-blue input:checked + .slider { background-color: #007bff; }
+.switch-green input:checked + .slider { background-color: #28a745; }
+
+/* Стили для каналов */
+.channels-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+.channel-item {
+  background: #f8f9fa;
+  min-height: 40px;
+}
+.channel-item:hover {
+  background: #e9ecef;
+}
+.channel-name {
+  font-size: 0.9em;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Стили для кружочков (как в channel_sync) */
+.circle-day { cursor: pointer; }
+.circle-day input[type="radio"] { display: none; }
+.circle-day .dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #adb5bd;
+  position: relative;
+  transition: all 0.3s;
+}
+.circle-day input[type="radio"]:checked + .dot {
+  border-color: #007bff;
+}
+.circle-day input[type="radio"]:checked + .dot::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #007bff;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.day-label { margin-left: 8px; }
+
+/* Стили для прогресс бара */
+.progress {
+  border-radius: 10px;
+  overflow: hidden;
+}
+.progress-bar {
+  background-color: #007bff;
+}
+
+/* История */
+.history-item, .warning-item {
+  font-size: 0.9em;
+}
+
+/* Плагины */
+.plugin-select-wrapper {
+  position: relative;
+}
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const baseImg = "{% static 'admin_panel/img/' %}";
+  const csrftoken = document.cookie.match('(^|;)\\s*csrftoken\\s*=\\s*([^;]+)')?.pop() || "";
+
+  // === Управление изображением ===
+  const photoInput = document.getElementById('avatar');
+  const previewBox = document.getElementById('preview');
+  const pickBtn = document.getElementById('pickPhotoBtn');
+  const clearBtn = document.getElementById('clearPhotoBtn');
+
+  function showPreview(src) {
+    previewBox.innerHTML = `<img src="${src}" alt="preview" style="width:100%;height:100%;object-fit:cover;border-radius:4px;">`;
+    if (clearBtn) clearBtn.disabled = false;
+  }
+
+  function clearPreview() {
+    if (photoInput) photoInput.value = '';
+    previewBox.innerHTML = `<span class="text-muted">Нет фото</span>`;
+    if (clearBtn) clearBtn.disabled = true;
+  }
+
+  if (photoInput) {
+    photoInput.addEventListener('change', e => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return clearPreview();
+      
+      // Проверка типа файла
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(f.type)) {
+        alert('Разрешены только изображения: JPG, PNG, GIF, WebP');
+        return;
+      }
+      
+      // Проверка размера (5MB)
+      if (f.size > 5 * 1024 * 1024) {
+        alert('Файл слишком большой. Максимум 5MB');
+        return;
+      }
+      
+      const r = new FileReader();
+      r.onload = ev => showPreview(ev.target.result);
+      r.readAsDataURL(f);
+    });
+  }
+  
+  if (pickBtn) pickBtn.addEventListener('click', () => photoInput.click());
+  if (clearBtn) clearBtn.addEventListener('click', clearPreview);
+  if (previewBox) previewBox.addEventListener('click', () => photoInput.click());
+
+  // === Счетчик символов для био ===
+  const bioInput = document.getElementById('bio');
+  const bioCounter = document.getElementById('bio-counter');
+  
+  if (bioInput && bioCounter) {
+    bioCounter.textContent = `${bioInput.value.length}/70 символов`;
+    
+    bioInput.addEventListener('input', function() {
+      const length = this.value.length;
+      bioCounter.textContent = `${length}/70 символов`;
+      if (length > 70) {
+        bioCounter.classList.add('text-danger');
+      } else {
+        bioCounter.classList.remove('text-danger');
+      }
+    });
+  }
+
+  // === Обработка свитчей ===
+  const genderSwitch = document.querySelector('input[name="gender"]');
+  const genderHidden = document.querySelector('input[name="gender_value"]');
+  if (genderSwitch && genderHidden) {
+    genderSwitch.addEventListener("change", function() {
+      genderHidden.value = this.checked ? "female" : "male";
+    });
+  }
+
+  const telegramStatusSwitch = document.querySelector('input[name="telegram_status"]');
+  const telegramStatusHidden = document.querySelector('input[name="telegram_status_value"]');
+  if (telegramStatusSwitch && telegramStatusHidden) {
+    telegramStatusSwitch.addEventListener("change", function() {
+      telegramStatusHidden.value = this.checked ? "premium" : "regular";
+    });
+  }
+
+  // === Переключатель групп (все/только наши) ===
+  document.querySelectorAll(".toggle-icon-groups").forEach(icon => {
+    icon.addEventListener("click", function() {
+      const activeNow = this.dataset.value === "1";
+      const hiddenInput = document.getElementById("show_all_groups");
+      
+      if (hiddenInput) {
+        hiddenInput.value = activeNow ? "1" : "0";
+
+        const container = this.closest('.target-actions');
+        const play = container.querySelector('.toggle-icon-groups[data-value="1"]');
+        const pause = container.querySelector('.toggle-icon-groups[data-value="0"]');
+
+        if (activeNow) {
+          play.src = baseImg + "play.png";
+          pause.src = baseImg + "pause_gray.png";
+        } else {
+          play.src = baseImg + "play_gray.png";
+          pause.src = baseImg + "pause.png";
+        }
+        
+        // Здесь можно добавить AJAX запрос для фильтрации групп
+        filterGroups(activeNow);
+      }
+    });
+  });
+
+  function filterGroups(showAll) {
+    // TODO: Реализовать AJAX запрос для фильтрации групп
+    console.log(`Фильтр групп: ${showAll ? 'Показать все' : 'Только наши'}`);
+  }
+
+  // === Управление плагинами ===
+  const pluginsContainer = document.getElementById('plugins-container');
+  const addPluginBtn = document.getElementById('add-plugin-btn');
+  let pluginIndex = 1; // Начинаем с 1, т.к. один уже есть
+
+  if (addPluginBtn) {
+    addPluginBtn.addEventListener('click', function() {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'plugin-select-wrapper mb-2';
+      wrapper.innerHTML = `
+        <select class="form-control plugin-select" style="max-width:400px;" data-index="${pluginIndex}">
+          <option value="">Выберите плагин из списка</option>
+          {% for plugin in all_plugins %}
+            <option value="{{ plugin.id }}">{{ plugin.name }}</option>
+          {% endfor %}
+        </select>
+      `;
+      
+      pluginsContainer.appendChild(wrapper);
+      pluginIndex++;
+      
+      // Добавляем обработчик для нового select
+      const newSelect = wrapper.querySelector('.plugin-select');
+      newSelect.addEventListener('change', function() {
+        if (this.value) {
+          // Можно добавить логику для обработки выбранного плагина
+          console.log(`Выбран плагин ${this.value} для индекса ${this.dataset.index}`);
+        }
+      });
+    });
+  }
+
+  // Инициализация обработчиков для существующих select плагинов
+  document.querySelectorAll('.plugin-select').forEach(select => {
+    select.addEventListener('change', function() {
+      if (this.value) {
+        console.log(`Выбран плагин ${this.value} для индекса ${this.dataset.index}`);
+      }
+    });
+  });
+
+  // === Кнопка синхронизации ===
+  const syncBtn = document.getElementById('syncBtn');
+  if (syncBtn) {
+    syncBtn.addEventListener('click', async function() {
+      const botId = {% if bot %}{{ bot.id }}{% else %}0{% endif %};
+      if (!botId) return;
+      
+      const originalHtml = this.innerHTML;
+      this.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Синхронизация...';
+      this.disabled = true;
+      
+      try {
+        const response = await fetch(`{% url 'admin_panel:bot_sync' 0 %}`.replace('0', botId), {
+          method: 'POST',
+          headers: {'X-CSRFToken': csrftoken, 'Content-Type': 'application/json'}
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          alert('Данные успешно синхронизированы с Telegram');
+          
+          // Обновляем аватарку если она есть в ответе
+          if (data.bot_data && data.bot_data.avatar_url) {
+              const previewBox = document.getElementById('preview');
+              previewBox.innerHTML = `<img src="${data.bot_data.avatar_url}" alt="preview" style="width:100%;height:100%;object-fit:cover;border-radius:4px;">`;
+          }
+          
+          // Перезагружаем страницу для обновления всех данных
+          setTimeout(() => location.reload(), 1000);
+      } else {
+          alert('Ошибка синхронизации: ' + (data.error || 'Неизвестная ошибка'));
+        }
+      } catch (error) {
+        alert('Ошибка соединения: ' + error.message);
+      } finally {
+        this.innerHTML = originalHtml;
+        this.disabled = false;
+      }
+    });
+  }
+
+  // === Кнопка обновления данных ===
+  const refreshDataBtn = document.getElementById('refreshDataBtn');
+  if (refreshDataBtn) {
+    refreshDataBtn.addEventListener('click', function() {
+      if (syncBtn) syncBtn.click();
+    });
+  }
+
+  // === Кнопки обновления групп ===
+  const refreshAdminGroupsBtn = document.getElementById('refreshAdminGroupsBtn');
+  const refreshSubscriberGroupsBtn = document.getElementById('refreshSubscriberGroupsBtn');
+
+  if (refreshAdminGroupsBtn) {
+    refreshAdminGroupsBtn.addEventListener('click', function() {
+      this.disabled = true;
+      this.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Обновление...';
+      
+      // TODO: Реализовать AJAX запрос для обновления списка админ-групп
+      setTimeout(() => {
+        this.disabled = false;
+        this.innerHTML = 'Обновить';
+        alert('Список админ-групп обновлен');
+      }, 2000);
+    });
+  }
+
+  if (refreshSubscriberGroupsBtn) {
+    refreshSubscriberGroupsBtn.addEventListener('click', function() {
+      this.disabled = true;
+      this.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Поиск...';
+      
+      // TODO: Реализовать AJAX запрос для поиска групп
+      setTimeout(() => {
+        this.disabled = false;
+        this.innerHTML = 'Запустить поиск';
+        alert('Поиск групп завершен');
+      }, 2000);
+    });
+  }
+
+  // === Валидация формы ===
+  const mainForm = document.getElementById('main-form');
+  if (mainForm) {
+    mainForm.addEventListener('submit', function(e) {
+      const firstName = document.querySelector('input[name="first_name"]');
+      
+      if (!firstName.value.trim()) {
+        e.preventDefault();
+        alert('Имя не может быть пустым');
+        firstName.focus();
+        return false;
+      }
+      
+      // Проверка длины био
+      if (bioInput && bioInput.value.length > 70) {
+        e.preventDefault();
+        alert('Описание "О себе" не может превышать 70 символов');
+        bioInput.focus();
+        return false;
+      }
+      
+      return true;
+    });
+  }
+});
+</script>
+<script>
+  // === Управление плагинами ===
+let pluginCounter = {{ plugins|length|default:1 }};
+const pluginsToRemove = [];
+
+// Функция для добавления нового плагина
+function addPluginSelect() {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'plugin-select-wrapper mb-2';
+  wrapper.innerHTML = `
+    <div class="d-flex align-items-center" style="gap:10px;">
+      <select name="plugins[]" class="form-control plugin-select" style="max-width:400px;">
+        <option value="">Выберите плагин из списка</option>
+        {% for plugin in all_plugins %}
+          <option value="{{ plugin.id }}">{{ plugin.name }}</option>
+        {% endfor %}
+      </select>
+      <button type="button" class="btn btn-outline-danger btn-sm remove-plugin" 
+              title="Удалить плагин">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+  `;
+  
+  pluginsContainer.appendChild(wrapper);
+  
+  // Обработчик для кнопки удаления
+  const removeBtn = wrapper.querySelector('.remove-plugin');
+  removeBtn.addEventListener('click', function() {
+    wrapper.remove();
+  });
+}
+
+// Функция для удаления существующего плагина
+function removePlugin(id) {
+  pluginsToRemove.push(id);
+  document.getElementById('remove_plugins').value = pluginsToRemove.join(',');
+}
+
+// Обработчики событий
+document.getElementById('add-plugin-btn').addEventListener('click', addPluginSelect);
+
+document.querySelectorAll('.remove-plugin').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const wrapper = this.closest('.plugin-select-wrapper');
+    const pluginId = wrapper.dataset.id;
+    
+    if (pluginId) {
+      removePlugin(pluginId);
+    }
+    
+    wrapper.remove();
+  });
+});
+</script>
+<script>
+  // === Функция для загрузки групп ===
+async function loadGroups(botId, groupType, buttonElement) {
+  if (!botId) return;
+  
+  const originalHtml = buttonElement.innerHTML;
+  buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Загрузка...';
+  buttonElement.disabled = true;
+  
+  try {
+    const response = await fetch(`/admin_panel/bots/${botId}/groups/${groupType}/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrftoken,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      // Обновляем список групп
+      updateGroupsList(groupType, data.groups);
+      alert(`Загружено ${data.groups.length} групп`);
+    } else {
+      alert('Ошибка загрузки групп: ' + (data.error || 'Неизвестная ошибка'));
+    }
+  } catch (error) {
+    alert('Ошибка соединения: ' + error.message);
+  } finally {
+    buttonElement.innerHTML = originalHtml;
+    buttonElement.disabled = false;
+  }
+}
+
+// Функция обновления списка групп
+function updateGroupsList(type, groups) {
+  const containerId = type === 'admin' ? 'admin-groups-container' : 'subscriber-groups-container';
+  const container = document.getElementById(containerId);
+  
+  if (!container) return;
+  
+  if (groups.length === 0) {
+    container.innerHTML = '<div class="text-muted small">Нет групп</div>';
+    return;
+  }
+  
+  let html = '';
+  groups.forEach(group => {
+    const icon = group.is_channel ? 'fas fa-broadcast-tower' : 'fas fa-users';
+    const badge = group.is_our ? '<span class="badge badge-info ml-2">Наша</span>' : '';
+    
+    html += `
+      <div class="channel-item d-flex align-items-center justify-content-between p-2 border rounded mb-2">
+        <div class="d-flex align-items-center" style="gap:10px;">
+          <i class="${icon} text-muted"></i>
+          <div>
+            <div class="channel-name">${group.title}${badge}</div>
+            ${group.username ? `<small class="text-muted">@${group.username}</small>` : ''}
+            ${group.participants_count ? `<small class="text-muted ml-2">${group.participants_count}</small>` : ''}
+          </div>
+        </div>
+        <small class="text-muted">${group.is_channel ? 'Канал' : 'Группа'}</small>
+      </div>
+    `;
+  });
+  
+  container.innerHTML = html;
+}
+
+// Обработчики для кнопок
+if (refreshAdminGroupsBtn) {
+  refreshAdminGroupsBtn.addEventListener('click', function() {
+    const botId = {% if bot %}{{ bot.id }}{% else %}0{% endif %};
+    loadGroups(botId, 'admin', this);
+  });
+}
+
+if (refreshSubscriberGroupsBtn) {
+  refreshSubscriberGroupsBtn.addEventListener('click', function() {
+    const botId = {% if bot %}{{ bot.id }}{% else %}0{% endif %};
+    loadGroups(botId, 'subscriber', this);
+  });
+}
+
+</script>
+{% endblock %}

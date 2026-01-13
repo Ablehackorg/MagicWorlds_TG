@@ -1,0 +1,133 @@
+{% extends "adminlte/base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-center align-items-center" style="min-height: 100vh;">
+  <div class="login-box" style="width: clamp(380px, 92vw, 500px);">
+    <div class="login-logo">
+      <b>Панель</b> Вход
+    </div>
+
+    <div class="card shadow">
+      <div class="card-body login-card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+
+          {% for field in form %}
+            <div class="form-group">
+              <label for="{{ field.id_for_label }}" class="d-block mb-1">{{ field.label }}</label>
+
+              {% if field.name == "password" %}
+                <div class="input-group">
+                  {{ field }}
+                  <div class="input-group-append">
+                    <span class="input-group-text" id="togglePassword" style="cursor:pointer;">
+                      <i class="fas fa-eye"></i>
+                    </span>
+                  </div>
+                </div>
+              {% else %}
+                {{ field }}
+              {% endif %}
+
+              {% if field.errors %}
+                <div class="text-danger small mt-1">{{ field.errors }}</div>
+              {% endif %}
+            </div>
+          {% endfor %}
+
+          <button type="submit" class="btn btn-primary btn-block">Войти</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Лейблы строго над полями */
+  .login-card-body .form-group label {
+    display: block;
+    margin-bottom: .35rem;
+    font-weight: 500;
+  }
+
+  /* Вертикальная форма, без требований к классам виджетов */
+  .login-card-body .form-group input,
+  .login-card-body .form-group select,
+  .login-card-body .form-group textarea {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    height: calc(2.5rem + 2px);
+    font-size: 1rem;
+  }
+
+  /* Контейнер пошире */
+  .login-box { width: clamp(380px, 92vw, 500px); }
+
+  /* Чтобы и без Bootstrap input-group работал корректно */
+  .login-card-body .input-group {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  /* Инпут внутри input-group не растягиваем на 100%, а даём ему гибкость */
+  .login-card-body .input-group > input {
+    flex: 1 1 auto;
+    width: auto;      /* перекрываем width:100% сверху */
+    min-width: 0;     /* не распирает контейнер */
+    height: calc(2.5rem + 2px);
+    font-size: 1rem;
+  }
+
+  .login-card-body .input-group-append {
+    flex: 0 0 auto;
+    display: flex;
+  }
+  
+  .login-card-body .input-group > input.form-control {
+  flex: 1 1 auto;
+  width: 0;        /* 🔹 ключ — заставляем работать через flex */
+  min-width: 0;    /* 🔹 не даём распирать контейнер */
+  max-width: 100%; /* 🔹 не выходит за пределы */
+}
+
+
+  .login-card-body .input-group-append .input-group-text {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: .5rem .6rem;
+    line-height: 1;
+    height: calc(2.5rem + 2px);
+    border: 1px solid rgba(0,0,0,.1);
+    border-left: none;      /* сливается с инпутом */
+    border-radius: .25rem;  /* если у вас bootstrap — подхватится его стиль */
+  }
+
+  /* На узких экранах — адаптивная ширина */
+  @media (max-width: 420px) {
+    .login-box { width: 92vw !important; }
+  }
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const toggle = document.getElementById("togglePassword");
+  if (!toggle) return;
+
+  const group = toggle.closest(".input-group");
+  const input = group ? group.querySelector("input[name='password']") : null;
+  const icon  = toggle.querySelector("i");
+
+  if (!input || !icon) return;
+
+  toggle.addEventListener("click", () => {
+    const isHidden = input.type === "password";
+    input.type = isHidden ? "text" : "password";
+    icon.classList.toggle("fa-eye", !isHidden);
+    icon.classList.toggle("fa-eye-slash", isHidden);
+  });
+});
+</script>
+{% endblock %}

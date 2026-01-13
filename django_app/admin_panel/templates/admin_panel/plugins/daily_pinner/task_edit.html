@@ -1,0 +1,304 @@
+{% extends "adminlte/base.html" %}
+{% block body_class %}page-scroll{% endblock %}
+{% load static %}
+{% load filters %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+
+    <!-- ===== Заголовок ===== -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h1 class="mb-0">{{ page_title }}</h1>
+
+      <!-- Справа: тумблер активности + Удалить -->
+      <div class="d-flex align-items-center" style="gap:12px;">
+        <span>Выкл</span>
+        <label class="switch switch-blue mb-0">
+          <input type="checkbox" id="toggle-active" {% if task and task.is_active %}checked{% endif %}>
+          <span class="slider round"></span>
+        </label>
+        <span>Вкл</span>
+        <input type="hidden" name="is_active" id="is_active" form="main-form" value="{% if task and task.is_active %}1{% else %}0{% endif %}">
+
+        {% if task %}
+        <form method="post" action="{% url 'admin_panel:daily_pinning_task_delete' task.id %}" 
+              onsubmit="return confirm('Удалить задачу #{{ task.id }}?');">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Удалить</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ===== Форма ===== -->
+    <form method="post" id="main-form">
+      {% csrf_token %}
+      <div class="task-form bordered-box p-3 bg-white rounded mb-4">
+
+
+        <!-- Канал -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Канал</div>
+          <div class="right">
+            <select name="channel_id" class="form-control" required>
+              <option value="">Выберите канал из списка</option>
+              {% for e in entities %}
+                <option value="{{ e.id }}" {% if task and task.channel_id == e.id %}selected{% endif %}>
+                  {{ e.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Закрепляемый пост -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Закрепляемый пост</div>
+          <div class="right">
+            <input type="text" name="post_link" class="form-control" 
+                   placeholder="Введите ссылку на пост в этом же канале"
+                   value="{{ task.post_link|default:'' }}" required>
+          </div>
+        </div>
+
+        <!-- Временные интервалы -->
+        <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;">Временные интервалы</div>
+          <div class="right d-flex flex-wrap align-items-center" style="gap:16px;">
+            {% with start_time=task.start_time|time:"H:i"|default:"08:00" end_time=task.end_time|time:"H:i"|default:"18:00" %}
+              <!-- Кнопка "Все" -->
+              <label class="circle-day d-flex align-items-center mb-1">
+                <input type="radio" name="interval" value="08:00-18:00"
+                       {% if not task or start_time == "08:00" and end_time == "18:00" %}checked{% endif %}>
+                <span class="dot"></span>
+                <span class="day-label ml-1">Все</span>
+              </label>
+
+              <!-- Фиксированные интервалы -->
+              <label class="circle-day d-flex align-items-center mb-1">
+                <input type="radio" name="interval" value="08:00-10:00"
+                       {% if start_time == "08:00" and end_time == "10:00" %}checked{% endif %}>
+                <span class="dot"></span>
+                <span class="day-label ml-1">08:00 - 10:00</span>
+              </label>
+
+              <label class="circle-day d-flex align-items-center mb-1">
+                <input type="radio" name="interval" value="10:00-12:00"
+                       {% if start_time == "10:00" and end_time == "12:00" %}checked{% endif %}>
+                <span class="dot"></span>
+                <span class="day-label ml-1">10:00 - 12:00</span>
+              </label>
+
+              <label class="circle-day d-flex align-items-center mb-1">
+                <input type="radio" name="interval" value="12:00-14:00"
+                       {% if start_time == "12:00" and end_time == "14:00" %}checked{% endif %}>
+                <span class="dot"></span>
+                <span class="day-label ml-1">12:00 - 14:00</span>
+              </label>
+
+              <label class="circle-day d-flex align-items-center mb-1">
+                <input type="radio" name="interval" value="14:00-16:00"
+                       {% if start_time == "14:00" and end_time == "16:00" %}checked{% endif %}>
+                <span class="dot"></span>
+                <span class="day-label ml-1">14:00 - 16:00</span>
+              </label>
+
+              <label class="circle-day d-flex align-items-center mb-1">
+                <input type="radio" name="interval" value="16:00-18:00"
+                       {% if start_time == "16:00" and end_time == "18:00" %}checked{% endif %}>
+                <span class="dot"></span>
+                <span class="day-label ml-1">16:00 - 18:00</span>
+              </label>
+            {% endwith %}
+          </div>
+        </div>
+
+        <!-- Снимать закреп через -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Снимать закреп через</div>
+          <div class="right d-flex align-items-center" style="gap:10px;">
+            <input type="number" name="unpin_after_minutes" min="1" class="form-control" style="width:100px;"
+                   value="{{ task.unpin_after_minutes|default:30 }}" required>
+            <span>мин</span>
+          </div>
+        </div>
+
+        <!-- Удалять оповещение через -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Удалять оповещение через</div>
+          <div class="right d-flex align-items-center" style="gap:10px;">
+            <input type="number" name="delete_notification_after_minutes" min="1" class="form-control" style="width:100px;"
+                   value="{{ task.delete_notification_after_minutes|default:30 }}" required>
+            <span>мин</span>
+          </div>
+        </div>
+
+        <!-- Кнопки -->
+        <div class="form-row mt-4">
+          <div class="left"></div>
+          <div class="right d-flex" style="gap:12px;">
+            <button type="submit" class="btn btn-success">Сохранить в БД</button>
+            <a href="{% url 'admin_panel:daily_pinning_tasks_view' %}" class="btn btn-secondary">Отмена</a>
+          </div>
+        </div>
+
+      </div>
+    </form>
+
+    <!-- ===== Таблица задач для быстрого доступа ===== -->
+    <div class="bordered-box p-3 bg-white rounded">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="mb-0">Все задачи ежедневного закрепления</h3>
+        <span class="col-toggle-btn" title="Управление столбцами">
+          <i class="fas fa-cog"></i>
+        </span>
+      </div>
+      
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover" id="dailyPinnerTable" data-sortable data-paginate>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th class="col-status">Статус</th>
+              <th>Канал</th>
+              <th>Интервал</th>
+              <th>Закреп</th>
+              <th>Лента</th>
+              <th>Вчера всего</th>
+              <th>Вчера пустых</th>
+              <th>Сегодня всего</th>
+              <th>Сегодня пустых</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for t in all_tasks %}
+            <tr>
+              <!-- ID -->
+              <td class="text-center">{{ t.id }}</td>
+
+              <!-- Статус -->
+              <td class="col-status text-center">
+                {% if t.is_active %}
+                  <span class="status-dot active" title="Активна"></span>
+                {% else %}
+                  <span class="status-dot inactive" title="Неактивна"></span>
+                {% endif %}
+              </td>
+
+              <!-- Канал -->
+              <td>{{ t.channel.name|default:"—" }}</td>
+
+              <!-- Интервал -->
+              <td class="text-center">
+                {% if t.start_time and t.end_time %}
+                  {% if t.start_time|time:"H:i" == "08:00" and t.end_time|time:"H:i" == "18:00" %}
+                    Все
+                  {% else %}
+                    {{ t.start_time|time:"H:i" }}–{{ t.end_time|time:"H:i" }}
+                  {% endif %}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+
+              <!-- Закреп -->
+              <td class="text-center">{{ t.unpin_after_minutes|default_if_none:"-" }} мин</td>
+
+              <!-- Лента -->
+              <td class="text-center">{{ t.delete_notification_after_minutes|default_if_none:"—" }} мин</td>
+
+              <!-- Вчера всего -->
+              <td class="text-center">{{ t.total_yesterday|default_if_none:0|add:t.dummy_yesterday|default_if_none:0 }}</td>
+
+              <!-- Вчера пустых -->
+              <td class="text-center">{{ t.dummy_yesterday|default_if_none:"0" }}</td>
+
+              <!-- Сегодня всего -->
+              <td class="text-center">{{ t.total_today|default_if_none:"0"|add:t.dummy_today|default_if_none:"0" }}</td>
+
+              <!-- Сегодня пустых -->
+              <td class="text-center">{{ t.dummy_today|default_if_none:"0" }}</td>
+              
+              <!-- Действия -->
+              <td class="text-center text-nowrap">
+                <a href="{% url 'admin_panel:daily_pinning_task_edit' t.id %}" title="Редактировать">
+                  <img src="{% static 'admin_panel/img/edit.png' %}" alt="Редактировать" class="icon-16 mr-2">
+                </a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="11" class="text-center text-muted">Задачи отсутствуют</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<style>
+  .bordered-box { border:1px solid #e0e0e0; }
+  .form-row { display:flex; align-items:center; }
+  .form-row .left { font-weight:600; color:#444; }
+  .form-row .right { flex:1; }
+  .day-label { font-size:14px; }
+  }
+</style>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    // Тумблер активности
+    const toggle = document.getElementById("toggle-active");
+    const hidden = document.getElementById("is_active");
+    if (toggle && hidden) {
+      toggle.addEventListener("change", () => {
+        hidden.value = toggle.checked ? "1" : "0";
+      });
+    }
+
+    // Обработка временных интервалов
+    const intervalRadios = document.querySelectorAll('input[name="interval"]');
+    const startInput = document.createElement("input");
+    const endInput = document.createElement("input");
+    startInput.type = "hidden";
+    endInput.type = "hidden";
+    startInput.name = "start_time";
+    endInput.name = "end_time";
+    
+    const form = document.getElementById("main-form");
+    if (form) {
+      form.appendChild(startInput);
+      form.appendChild(endInput);
+    }
+
+    const updateInterval = () => {
+      const selected = document.querySelector('input[name="interval"]:checked');
+      if (selected) {
+        const [s, e] = selected.value.split("-");
+        startInput.value = s ? s + ":00" : "";
+        endInput.value = e ? e + ":00" : "";
+      }
+    };
+    
+    intervalRadios.forEach(r => r.addEventListener("change", updateInterval));
+    updateInterval(); // Инициализация при загрузке
+  });
+</script>
+
+<!-- Подключение скриптов для таблицы -->
+<script type="module">
+  import { initSortableTables } from "{% static 'admin_panel/js/sortableTable.js' %}";
+  import { initTablePagination } from "{% static 'admin_panel/js/pagination.js' %}";
+  import "{% static 'admin_panel/js/colToggles.js' %}";
+
+  initSortableTables();
+  initTablePagination(20);
+</script>
+
+{% endblock %}

@@ -1,0 +1,213 @@
+{% extends "adminlte/base.html" %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h1 class="mb-0">Создать нового бота</h1>
+      <a href="{% url 'admin_panel:bots_page' %}" class="btn btn-secondary">Назад</a>
+    </div>
+
+    <form id="createBotForm" method="post" onsubmit="return false;">
+      {% csrf_token %}
+
+      <!-- name -->
+      <div class="form-group">
+        <label for="name">Название</label>
+        <input type="text" name="name" id="name" class="form-control" placeholder="Например: Основной бот">
+      </div>
+
+      <!-- api_id -->
+      <div class="form-group">
+        <label for="api_id">API ID</label>
+        <input type="number" step="1" inputmode="numeric" name="api_id" id="api_id" class="form-control" required>
+      </div>
+
+      <!-- api_hash -->
+      <div class="form-group">
+        <label for="api_hash">API HASH</label>
+        <input type="text" name="api_hash" id="api_hash" class="form-control" required autocomplete="off">
+      </div>
+
+      <!-- phone -->
+      <div class="form-group">
+        <label for="phone">Телефон</label>
+        <input type="tel" name="phone" id="phone" class="form-control" placeholder="+79998887766 или в любом формате" required>
+      </div>
+
+      <!-- token (server-side) -->
+      <input type="hidden" id="auth_token" name="token">
+
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-primary" id="getCodeBtn">Получить код</button>
+      </div>
+
+      <div id="codeSection" class="mt-4" style="display:none;">
+        <!-- code -->
+        <div class="form-group">
+          <label for="code">Код из Telegram</label>
+          <input type="text" name="code" id="code" class="form-control" placeholder="Введи код" inputmode="numeric" autocomplete="one-time-code">
+          <small class="form-text text-muted">Если код не пришёл, запроси его ещё раз через 30–60 сек.</small>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-success" id="confirmCodeBtn">Подтвердить</button>
+          <button type="button" class="btn btn-outline-primary" id="resendBtn">Отправить код повторно</button>
+        </div>
+      </div>
+
+      <div id="msg" class="mt-3"></div>
+    </form>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+(function() {
+  const form        = document.getElementById('createBotForm');
+  const getCodeBtn  = document.getElementById('getCodeBtn');
+  const confirmBtn  = document.getElementById('confirmCodeBtn');
+  const resendBtn   = document.getElementById('resendBtn');
+  const codeSection = document.getElementById('codeSection');
+  const tokenInput  = document.getElementById('auth_token');
+  const codeInput   = document.getElementById('code');
+  const csrf        = document.querySelector('input[name=csrfmiddlewaretoken]').value;
+
+  function show(msg, type='info') {
+    const host = document.getElementById('msg') || (() => {
+      const d = document.createElement('div'); d.id='msg'; d.className='mt-3'; form.appendChild(d); return d;
+    })();
+    const cls = {info:'alert-info', success:'alert-success', warn:'alert-warning', error:'alert-danger'}[type]||'alert-info';
+    host.innerHTML = `<div class="alert ${cls} mb-0" role="alert">${msg}</div>`;
+  }
+
+  // только цифры в поле code
+  codeInput.addEventListener('input', () => codeInput.value = codeInput.value.replace(/\D+/g, ''));
+
+  async function requestCode() {
+    // берем значения строго по их key-именам
+    const name     = document.getElementById('name').value.trim();       // name
+    const api_id   = document.getElementById('api_id').value.trim();     // api_id
+    const api_hash = document.getElementById('api_hash').value.trim();   // api_hash
+    const phone    = document.getElementById('phone').value.trim();      // phone
+
+    if (!api_id || !api_hash || !phone) {
+      show('Заполните API ID, API HASH и Телефон', 'warn');
+      return;
+    }
+
+    // отправляем точь-в-точь те ключи, что нужны бэкенду
+    const fd = new FormData();
+    if (name)       fd.append('name', name);           // name
+    fd.append('api_id',   api_id);                     // api_id
+    fd.append('api_hash', api_hash);                   // api_hash
+    fd.append('phone',    phone);                      // phone
+
+    getCodeBtn.disabled = true;
+    if (resendBtn) resendBtn.disabled = true;
+    show('Отправляем код...', 'info');
+
+    try {
+      const r = await fetch("{% url 'telegram:start_auth' %}", {
+        method: "POST",
+        headers: { "X-CSRFToken": csrf },
+        body: fd
+      });
+      const data = await r.json();
+
+      if (data.status === 'code_sent' && data.token) {
+        tokenInput.value = data.token;        // token
+        codeInput.value  = "";                // code
+        codeSection.style.display = '';
+        show('Код отправлен. Введите его ниже.', 'success');
+      } else if (data.error === 'FLOOD_WAIT') {
+        show(`Слишком часто. Подождите ${data.retry_after || 60} сек.`, 'warn');
+      } else {
+        show('Ошибка: ' + (data.error || JSON.stringify(data)), 'error');
+      }
+    } catch (e) {
+      tokenInput.value = "";
+      show('Сеть/сервер: ' + e, 'error');
+    } finally {
+      getCodeBtn.disabled = false;
+      if (resendBtn) resendBtn.disabled = false;
+    }
+  }
+
+  // Шаг 1 — получить код
+  getCodeBtn.addEventListener('click', requestCode);
+
+  // Шаг 2 — подтвердить код
+  confirmBtn.addEventListener('click', async () => {
+    const token = tokenInput.value.trim();   // token
+    const code  = codeInput.value.trim();    // code
+    if (!token) return show('Нет token: нажмите «Получить код».', 'warn');
+    if (!code)  return show('Введите код из Telegram.', 'warn');
+
+    const fd = new FormData();
+    fd.append('token', token);  // token
+    fd.append('code',  code);   // code
+
+    confirmBtn.disabled = true;
+
+    try {
+      const r = await fetch("{% url 'telegram:confirm_code' %}", {
+        method: "POST",
+        headers: { "X-CSRFToken": csrf },
+        body: fd
+      });
+      const data = await r.json();
+
+      if (data.status === 'authorized') {
+        show('Готово! Бот сохранён и авторизован.', 'success');
+        setTimeout(() => location.href = "{% url 'admin_panel:bots_page' %}", 700);
+      } else if (data.error === 'PHONE_CODE_INVALID') {
+        show('Неверный код. Попробуйте ещё раз.', 'error');
+      } else if (data.error === 'PHONE_CODE_EXPIRED') {
+        show('Код истёк. Нажмите «Отправить повторно».', 'warn');
+      } else if (data.error === 'SESSION_PASSWORD_NEEDED') {
+        show('На аккаунте включена 2FA. Нужен пароль (добавим шаг ввода пароля).', 'warn');
+      } else if (data.error === 'NO_PENDING_CODE') {
+        show('Нет активного запроса кода. Нажмите «Получить код».', 'warn');
+      } else if (data.error === 'FLOOD_WAIT') {
+        show(`Слишком часто. Подождите ${data.retry_after || 60} сек.`, 'warn');
+      } else {
+        show('Ошибка: ' + (data.error || JSON.stringify(data)), 'error');
+      }
+    } catch (e) {
+      show('Сеть/сервер: ' + e, 'error');
+    } finally {
+      confirmBtn.disabled = false;
+    }
+  });
+
+  // Повторная отправка кода — только token
+  document.getElementById("resendBtn")?.addEventListener("click", async () => {
+    const token = tokenInput.value.trim(); // token
+    if (!token) return show('Нет token: сначала нажмите «Получить код».', 'warn');
+
+    try {
+      const r = await fetch("{% url 'telegram:resend_code' %}", {
+        method: "POST",
+        headers: { "X-CSRFToken": csrf, "Content-Type": "application/json" },
+        body: JSON.stringify({ token }) // token
+      });
+      const data = await r.json();
+      if (data.status === "resent") {
+        const hint = data.delivery === 'SentCodeTypeApp'
+          ? 'Код снова отправлен в приложение Telegram (чат «Telegram»).'
+          : 'Код снова отправлен (возможно SMS/звонок).';
+        show(hint, 'success');
+      } else if (data.error === 'FLOOD_WAIT') {
+        show(`Слишком часто. Подождите ${data.retry_after || 60} сек.`, 'warn');
+      } else {
+        show('Ошибка: ' + (data.error || JSON.stringify(data)), 'error');
+      }
+    } catch (e) {
+      show('Сеть/сервер: ' + e, 'error');
+    }
+  });
+})();
+</script>
+{% endblock %}

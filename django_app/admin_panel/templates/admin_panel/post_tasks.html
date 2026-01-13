@@ -1,0 +1,95 @@
+{% extends "adminlte/base.html" %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <h1 class="mb-4">Задачи публикации</h1>
+
+    <table class="table table-bordered table-hover" id="tasksTable">
+      <thead>
+        <tr>
+          <th onclick="sortTable(0)">Статус <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(1)">ID <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(2)">Цель - где публикуем <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(3)">День <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(4)">Время <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(5)">Источник - откуда берём <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(6)">Выбор <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(7)">После публикации <span class="sort-arrow"></span></th>
+          <th>Действие</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for task in tasks %}
+        <tr>
+          <td>
+            {% if task.status == "success" %}
+              <span class="badge badge-success">Активен</span>
+            {% else %}
+              <span class="badge badge-danger">Ошибка</span>
+            {% endif %}
+          </td>
+          <td>{{ task.id }}</td>
+          <td>{{ task.target }}</td>
+          <td>{{ task.days }}</td>
+          <td>{{ task.time }}</td>
+          <td>{{ task.source }}</td>
+          <td>{{ task.choice }}</td>
+          <td>{{ task.after }}</td>
+          <td>
+            <a href="{% url 'admin_panel:channel_post_tasks_edit' task.id %}" class="btn btn-secondary btn-sm">
+              <i class="fas fa-gavel"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<style>
+  th { cursor: pointer; }
+  .sort-arrow::after { content: "⇅"; font-size: 12px; margin-left: 4px; color: #aaa; }
+  .asc .sort-arrow::after { content: "↑"; color: #000; }
+  .desc .sort-arrow::after { content: "↓"; color: #000; }
+</style>
+
+<script>
+  let currentSortCol = -1;
+  let currentSortDir = "asc";
+
+  function sortTable(colIndex) {
+    const table = document.getElementById("tasksTable");
+    const tbody = table.tBodies[0];
+    const rows = Array.from(tbody.querySelectorAll("tr"));
+
+    if (currentSortCol === colIndex) {
+      currentSortDir = currentSortDir === "asc" ? "desc" : "asc";
+    } else {
+      currentSortCol = colIndex;
+      currentSortDir = "asc";
+    }
+
+    rows.sort((a, b) => {
+      let A = a.cells[colIndex].innerText.trim();
+      let B = b.cells[colIndex].innerText.trim();
+
+      // для чисел
+      if (!isNaN(A) && !isNaN(B)) {
+        A = Number(A);
+        B = Number(B);
+      }
+
+      if (A < B) return currentSortDir === "asc" ? -1 : 1;
+      if (A > B) return currentSortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    rows.forEach(r => tbody.appendChild(r));
+
+    document.querySelectorAll("th").forEach(th => th.classList.remove("asc", "desc"));
+    table.rows[0].cells[colIndex].classList.add(currentSortDir);
+  }
+</script>
+{% endblock %}

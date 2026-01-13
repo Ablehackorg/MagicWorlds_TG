@@ -1,0 +1,241 @@
+{% load static %}
+
+<aside class="main-sidebar sidebar-dark-primary elevation-4">
+  <!-- Brand Logo -->
+  <a href="/" class="brand-link">
+    <img src="{% static 'img/favicon.svg' %}" alt="Logo"
+         class="brand-image img-circle elevation-3"
+         style="opacity:.8">
+    <span class="brand-text font-weight-light">Bot Manager</span>
+    <span id="brand-clock" class="brand-clock"></span>
+  </a>
+
+<style>
+/* Компактные стили для сайдбара */
+.brand-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.5rem;
+  min-height: 40px;
+  max-height: 40px;
+}
+
+.brand-content {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.brand-text {
+  font-size: 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.brand-clock {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: #c2c7d0;
+  white-space: nowrap;
+  margin-left: 8px;
+  flex-shrink: 0;
+  background: rgba(0,0,0,0.2);
+  padding: 1px 4px;
+  border-radius: 3px;
+  line-height: 1;
+}
+
+/* Увеличиваем шрифт для основного контента сайдбара */
+.sidebar {
+  font-size: 1.2rem; /* Увеличиваем базовый размер шрифта */
+}
+
+.nav-sidebar .nav-link {
+  font-size: 1.1rem; /* Увеличиваем размер шрифта пунктов меню */
+  padding: 0.5rem 0.8rem; /* Немного увеличиваем отступы */
+}
+
+.nav-sidebar .nav-treeview .nav-link {
+  font-size: 1rem; /* Чуть меньше для подпунктов */
+  padding: 0.4rem 0.8rem 0.4rem 1.5rem;
+}
+
+.nav-sidebar .nav-link p {
+  font-size: inherit; /* Наследуем размер шрифта */
+  margin: 0;
+}
+
+.nav-sidebar .nav-link i:not(.right) {
+  font-size: 1.1rem; /* Увеличиваем иконки */
+  margin-right: 0.5rem;
+}
+
+.nav-sidebar .nav-link i.right {
+  font-size: 0.9rem; /* Стрелочки чуть меньше */
+}
+</style>
+
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <nav class="mt-2">
+      <ul class="nav nav-pills nav-sidebar flex-column" 
+          data-widget="treeview" role="menu" data-accordion="false">
+
+        <!-- Плагины -->
+        <li class="nav-item has-treeview" data-key="plugins">
+          <a href="#" class="nav-link">
+            <i class="nav-icon fas fa-plug"></i>
+            <p>Плагины <i class="right fas fa-angle-left"></i></p>
+          </a>
+          <ul class="nav nav-treeview">
+
+            <!-- В работе -->
+            <li class="nav-item has-treeview" data-key="plugins-working">
+              <a href="#" class="nav-link">
+                <p>В работе <i class="right fas fa-angle-left"></i></p>
+              </a>
+              <ul class="nav nav-treeview">
+                <li class="nav-item"><a href="{% url 'admin_panel:entity_post_tasks_view' %}" class="nav-link">Публикатор постов</a></li>
+                <li class="nav-item"><a href="{% url 'admin_panel:ads_tasks_view' %}" class="nav-link">Реклама</a></li>
+                <li class="nav-item"><a href="{% url 'admin_panel:daily_pinning_tasks_view' %}" class="nav-link">Эмулятор постов в канале</a></li>
+                <li class="nav-item"><a href="{% url 'admin_panel:subscribers_tasks_view' %}" class="nav-link">Нормализатор подписчиков</a></li>
+                <li class="nav-item"><a href="{% url 'admin_panel:view_boost_tasks_view' %}" class="nav-link">Умный просмотр новых постов</a></li>
+                <li class="nav-item"><a href="{% url 'admin_panel:old_views_tasks_view' %}" class="nav-link">Нормализатор просмотров</a></li>
+                <li class="nav-item"><a href="{% url 'admin_panel:blondinka_tasks_view' %}" class="nav-link">Бот-Блондинка</a></li>
+                <li class="nav-item"><a href="{% url 'admin_panel:weatherbot_tasks_view' %}" class="nav-link">Бот погоды</a></li>
+                <!-- <li class="nav-item"><a href="#" class="nav-link">Реклама в канале</a></li> -->
+                <!-- <li class="nav-item"><a href="#" class="nav-link">Реклама - бот</a></li> -->
+                <li class="nav-item"><a href="{% url 'admin_panel:reaction_tasks_view' %}" class="nav-link">Лайкер</a></li>
+                <li class="nav-item"><a href="{% url 'admin_panel:channel_sync_tasks_view' %}" class="nav-link">Клон-Актуализация</a></li>
+                <!-- <li class="nav-item"><a href="#" class="nav-link">Нормализатор постов групп</a></li> -->
+                <!-- <li class="nav-item"><a href="#" class="nav-link">Публикатор Канал-Группа</a></li> -->
+                <!-- <li class="nav-item"><a href="#" class="nav-link">Ухо</a></li> -->
+                <!-- <li class="nav-item"><a href="#" class="nav-link">Умный спам</a></li> -->
+                <!-- <li class="nav-item"><a href="#" class="nav-link">Постер ТГ-Соцсети-Сайт</a></li> -->
+                <!-- <li class="nav-item"><a href="#" class="nav-link">Привратник</a></li> -->
+                <!-- <li class="nav-item"><a href="#" class="nav-link">Комментарии для каналов</a></li> -->
+                <!-- <li class="nav-item"><a href="#" class="nav-link">Генератор контента сайта</a></li> -->
+              </ul>
+            </li>
+
+            <!-- Системные -->
+            <!-- <li class="nav-item has-treeview" data-key="plugins-system">
+              <a href="#" class="nav-link">
+                <p>Системные <i class="right fas fa-angle-left"></i></p>
+              </a>
+              <ul class="nav nav-treeview">
+                <li class="nav-item"><a href="#" class="nav-link">Поиск групп и каналов</a></li>
+                <li class="nav-item"><a href="#" class="nav-link">Проверка выбранных</a></li>
+                <li class="nav-item"><a href="#" class="nav-link">Парсинг контента 1:1</a></li>
+                <li class="nav-item"><a href="#" class="nav-link">Парсинг подписчиков</a></li>
+                <li class="nav-item"><a href="#" class="nav-link">Авторег акков</a></li>
+              </ul>
+            </li> -->
+
+            <!-- Тематические -->
+            <!-- <li class="nav-item has-treeview" data-key="plugins-theme">
+              <a href="#" class="nav-link">
+                <p>Тематические <i class="right fas fa-angle-left"></i></p>
+              </a>
+              <ul class="nav nav-treeview">
+                <li class="nav-item"><a href="#" class="nav-link">Погода</a></li>
+                <li class="nav-item"><a href="#" class="nav-link">Курс валют</a></li>
+                <li class="nav-item"><a href="#" class="nav-link">Вечеринки</a></li>
+              </ul>
+            </li> -->
+          </ul>
+        </li>
+
+        <!-- ЛК -->
+        <!-- <li class="nav-item has-treeview" data-key="lk">
+          <a href="#" class="nav-link">
+            <i class="nav-icon fas fa-user"></i>
+            <p>ЛК <i class="right fas fa-angle-left"></i></p>
+          </a>
+          <ul class="nav nav-treeview">
+            <li class="nav-item"><a href="#" class="nav-link">Рекламодателя</a></li>
+            <li class="nav-item"><a href="#" class="nav-link">Модератора</a></li>
+          </ul>
+        </li>
+ -->
+        <!-- Справочники -->
+        <li class="nav-item has-treeview" data-key="reference">
+          <a href="#" class="nav-link">
+            <i class="nav-icon fas fa-book"></i>
+            <p>Справочники <i class="right fas fa-angle-left"></i></p>
+          </a>
+          <ul class="nav nav-treeview">
+            <li class="nav-item"><a href="{% url 'admin_panel:entities_page' %}" class="nav-link">Сообщества ТГ</a></li>
+            <li class="nav-item"><a href="{% url 'admin_panel:bots_page' %}" class="nav-link">Боты</a></li>
+            <li class="nav-item has-treeview" data-key="reference-accounts">
+              <!-- <a href="#" class="nav-link"><p>Аккаунты <i class="right fas fa-angle-left"></i></p></a> -->
+              <ul class="nav nav-treeview">
+                <!-- <li class="nav-item"><a href="#" class="nav-link">Чужие</a></li> -->
+                <!-- <li class="nav-item"><a href="#" class="nav-link">Наши</a></li> -->
+                <!-- <li class="nav-item"><a href="#" class="nav-link">Наши Премиум</a></li> -->
+                <!-- <li class="nav-item"><a href="#" class="nav-link">Нормализация</a></li> -->
+              </ul>
+            </li>
+            <li class="nav-item"><a href="{% url 'admin_panel:countries_page' %}" class="nav-link">Страны</a></li>
+            <li class="nav-item"><a href="{% url 'admin_panel:categories_page' %}" class="nav-link">Категории</a></li>
+            <li class="nav-item"><a href="{% url 'admin_panel:themes_list' %}" class="nav-link">Диалоги Блондинка</a></li>
+            <li class="nav-item has-treeview" data-key="reference-api">
+              <a href="#" class="nav-link"><p>API <i class="right fas fa-angle-left"></i></p></a>
+              <ul class="nav nav-treeview">
+                <!-- <li class="nav-item"><a href="#" class="nav-link">TG-Stat</a></li> -->
+                <!-- <li class="nav-item"><a href="#" class="nav-link">РегРу</a></li> -->
+                <li class="nav-item"><a href="{% url 'admin_panel:booster_settings' %}" class="nav-link">twiboost.com</a></li>
+                <!-- <li class="nav-item"><a href="#" class="nav-link">XE.com</a></li> -->
+              </ul>
+            </li>
+            <!-- <li class="nav-item"><a href="#" class="nav-link">Доноры ТГ</a></li> -->
+            <!-- <li class="nav-item"><a href="#" class="nav-link">Источники ТГ</a></li> -->
+            <!-- <li class="nav-item"><a href="#" class="nav-link">Базовые настройки</a></li> -->
+          </ul>
+        </li>
+
+        <!-- Статистика -->
+        <li class="nav-item has-treeview" data-key="stats">
+          <a href="#" class="nav-link">
+            <i class="nav-icon fas fa-chart-line"></i>
+            <p>Статистика <i class="right fas fa-angle-left"></i></p>
+          </a>
+          <ul class="nav nav-treeview">
+            <li class="nav-item"><a href="{% url 'admin_panel:twiboost_stats_view' %}" class="nav-link">TWiboost.com</a></li>
+            <li class="nav-item"><a href="{% url 'admin_panel:reaction_stats_view' %}" class="nav-link">Лайкер</a></li>
+            <!-- <li class="nav-item"><a href="#" class="nav-link">Сервера</a></li>
+            <li class="nav-item"><a href="#" class="nav-link">Сайта</a></li>
+            <li class="nav-item"><a href="#" class="nav-link">Групп в соцсетях</a></li>
+            <li class="nav-item"><a href="#" class="nav-link">Оповещение</a></li> -->
+          </ul>
+        </li>
+
+        <!-- Логи -->
+       <!--  <li class="nav-item has-treeview" data-key="logs">
+          <a href="#" class="nav-link">
+            <i class="nav-icon fas fa-file-alt"></i>
+            <p>Логи <i class="right fas fa-angle-left"></i></p>
+          </a>
+          <ul class="nav nav-treeview">
+            <li class="nav-item"><a href="#" class="nav-link">Критические</a></li>
+            <li class="nav-item"><a href="#" class="nav-link">По скриптам</a></li>
+            <li class="nav-item"><a href="#" class="nav-link">По группам-каналам</a></li>
+          </ul>
+        </li> -->
+
+        <!-- Вебсайт -->
+        <!-- <li class="nav-item" data-key="website"><a href="#" class="nav-link"><i class="nav-icon fas fa-globe"></i><p>Вебсайт</p></a></li> -->
+
+        <!-- Android -->
+        <!-- <li class="nav-item" data-key="android"><a href="#" class="nav-link"><i class="nav-icon fab fa-android"></i><p>Приложение Android</p></a></li> -->
+
+      </ul>
+    </nav>
+  </div>
+</aside>

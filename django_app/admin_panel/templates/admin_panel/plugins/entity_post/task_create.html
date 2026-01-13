@@ -1,0 +1,736 @@
+{% extends "adminlte/base.html" %}
+{% block body_class %}page-scroll{% endblock %}
+{% load static %}
+{% load filters %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <!-- слева: заголовок + сохранить/отмена -->
+      <div class="d-flex align-items-center">
+        <h1 class="mb-0 mr-3">Создание задачи</h1>
+        <div class="btn-toolbar" role="toolbar">
+          <button form="main-form" type="submit" class="btn btn-success mr-2">Сохранить в БД</button>
+          <a href="{% url 'admin_panel:entity_post_tasks_view' %}" class="btn btn-secondary">Отмена</a>
+        </div>
+      </div>
+
+      <!-- справа: тумблер и отдельная красная "Удалить" -->
+      <div class="d-flex align-items-center" style="gap:12px;">
+        <span>Выкл</span>
+        <label class="switch switch-blue mb-0">
+          <input type="checkbox" id="toggle-global">
+          <span class="slider round"></span>
+        </label>
+        <span>Вкл</span>
+        <input type="hidden" name="is_global_active" id="is_global_active" form="main-form" value="0">
+      </div>
+    </div>
+
+
+    <form method="post" id="main-form">
+      {% csrf_token %}
+
+      <!-- ===== Источник ===== -->
+      <div class="section-bar">Источник (Новая задача)</div>
+      <div class="form-rows">
+        <div class="form-row">
+          <div class="left">Источник</div>
+          <div class="right d-flex align-items-center">
+            <select name="source_id" id="source_id" class="form-control" required style="max-width:560px;">
+              <option value="" selected>— выберите источник —</option>
+              {% for e in entities %}
+                <option value="{{ e.id }}"
+                        data-type="{{ e.entity_type }}"
+                        data-owner="{{ e.owner|default_if_none:'' }}"
+                        data-dest="{{ e.destination_type|default_if_none:'' }}">
+                  {{ e.name }} ({{ e.entity_type }})
+                </option>
+              {% endfor %}
+            </select>
+
+            <!-- визуальный Свой/Чужой рядом с источником -->
+            <div class="ml-3 d-flex align-items-center">
+              <span class="mr-2">Свой</span>
+              <label class="switch switch-green mb-0">
+                <input type="checkbox" id="source-owner-toggle">
+                <span class="slider round"></span>
+              </label>
+              <span class="ml-2">Чужой</span>
+            </div>
+          </div>
+          <input type="hidden" name="source_model" id="source_model" value="">
+        </div>
+      </div>
+
+      <!-- ===== Фильтр выборки ===== -->
+      <div class="section-bar">Фильтр выборки</div>
+      <div class="form-rows">
+        <div class="form-row">
+          <div class="left">Выбор постов</div>
+          <div class="right one-line-radios d-flex align-items-center">
+            <label class="circle-day d-flex align-items-center mr-3 mb-0">
+              <input type="radio" name="choice_mode" value="random" checked>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Случайный</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-0">
+              <input type="radio" name="choice_mode" value="sequential">
+              <span class="dot"></span>
+              <span class="day-label ml-1">По порядку</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="left">После публикации</div>
+          <div class="right one-line-radios d-flex align-items-center">
+            <label class="circle-day d-flex align-items-center mb-0" id="after-publish-toggle">
+              <input type="checkbox" hidden>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Удалять</span>
+            </label>
+            <input type="hidden" name="after_publish" id="after_publish_value" value="cycle">
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Цели ===== -->
+      <div class="section-bar">Цели</div>
+      <div class="form-rows">
+        <!-- Фильтр списка -->
+        <div class="form-row">
+          <div class="left">Фильтр списка</div>
+          <div class="right">
+            <div class="mb-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm mr-2 dest-btn" data-dest="Основные">Основные</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm mr-3 dest-btn active" data-dest="Библиотека">Библиотека</button>
+
+              <button type="button" class="btn btn-outline-secondary btn-sm mr-2 owner-btn" data-owner="Свой">Свой</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm owner-btn" data-owner="Чужой">Чужой</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Группировка -->
+        <div class="form-row">
+          <div class="left">Группировка списка</div>
+          <div class="right">
+            <button type="button" class="btn btn-outline-secondary btn-sm mr-2 group-btn active" data-group="order">По порядку</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm mr-2 group-btn" data-group="country">Страны</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm group-btn" data-group="category">Категории</button>
+          </div>
+        </div>
+
+        <!-- Кнопка открытия модального окна -->
+        <div class="form-row">
+          <div class="left">Выбор целей</div>
+          <div class="right">
+            <button type="button" class="btn btn-primary btn-sm" id="open-targets-modal">Открыть выбор целей</button>
+            <span class="ml-2 text-muted" id="selected-count">Выбрано: 0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Модальное окно выбора целей -->
+      <div class="modal fade" id="targetsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg" style="max-width: 60%; height: calc(100vh - 200px);">
+          <div class="modal-content h-100">
+            <div class="modal-header">
+              <h5 class="modal-title">Выбор целей</h5>
+              <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div class="modal-body p-0 modal-body-select">
+              <select id="targets-multi" multiple>
+                <option value="">— выберите цели —</option>
+                {% for e in entities %}
+                  <option value="{{ e.id }}"
+                          data-owner="{{ e.owner|default_if_none:'' }}"
+                          data-dest="{{ e.destination_type|default_if_none:'' }}"
+                          data-country="{{ e.country.name|default_if_none:'' }}"
+                          data-category="{{ e.category.name|default_if_none:'' }}"
+                          data-order="{{ e.order|default_if_none:'' }}">
+                    {{ e.name }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+              <button type="button" class="btn btn-primary" id="apply-selection">Применить выбор</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Цели: список строк с заголовком слева -->
+      <div id="targets-rows" class="form-rows mt-2">
+        <!-- Шаблон строки -->
+        <div class="form-row target-row target-template d-none">
+          <div class="left target-label">Цель 1</div>
+          <div class="right d-flex align-items-center" style="gap:12px;">
+            <span class="target-name" style="min-width: 400px;">— не выбрано —</span>
+            <input type="hidden" name="target_ids" value="">
+
+            <div class="target-actions text-nowrap">
+              <img src="{% static 'admin_panel/img/play.png' %}" class="icon-16 toggle-icon" data-value="1" title="Активна">
+              <img src="{% static 'admin_panel/img/pause_gray.png' %}" class="icon-16 toggle-icon" data-value="0" title="Неактивна">
+              <img src="{% static 'admin_panel/img/delete.png' %}" class="icon-16 remove-target" title="Удалить">
+              <input type="hidden" name="is_active_0" value="1">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-start mb-4">
+        <button type="button" class="btn btn-sm btn-secondary" id="add-target">Добавить новую</button>
+      </div>
+
+      <!-- ===== Условия публикации ===== -->
+      <div class="section-bar">Условия публикации</div>
+      <div class="form-rows">
+        <div class="form-row">
+          <div class="left">Когда</div>
+          <div class="right weekdays d-flex flex-wrap">
+            <label class="circle-day mr-3 mb-2 d-flex align-items-center">
+              <input type="checkbox" id="all-week" name="days" value="all" checked>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Ежедневно</span>
+            </label>
+            {% for num, short in weekdays.items %}
+              <label class="circle-day mr-3 mb-2 d-flex align-items-center">
+                <input type="checkbox" class="weekday" name="days" value="{{ num }}">
+                <span class="dot"></span>
+                <span class="day-label ml-1">{{ short }}</span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="left">Время</div>
+          <div class="right d-flex">
+            <input type="number" class="form-control mr-2" name="hours" min="0" max="23" value="12" style="max-width:90px;">
+            <input type="number" class="form-control" name="minutes" min="0" max="59" value="0" style="max-width:90px;">
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</section>
+
+<!-- Tom Select -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap4.min.css">
+<script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+
+<style>
+  .one-line-radios { flex-wrap: nowrap; gap: 16px; }
+  @media (max-width: 768px){
+    .one-line-radios { flex-wrap: wrap; }
+  }
+
+  /* Секции (серые полосы) */
+  .section-bar{
+    background:#e9ecef; color:#2e3a46; font-weight:600;
+    padding:8px 12px; margin:14px 0 6px; border-radius:4px;
+    border:1px solid #dee2e6;
+  }
+  /* Строки формы: подпись слева, контрол справа, примечание справа */
+  .form-rows{border:1px solid #e9ecef; border-radius:6px; background:#fff; margin-bottom:8px;}
+  .form-row{display:grid; grid-template-columns: 240px 1fr 220px; grid-gap:12px; align-items:center;
+    padding:10px 12px; border-top:1px solid #f2f4f6;}
+  .form-row:first-child{border-top:0;}
+  .form-row .left{font-weight:600; color:#495057;}
+  .form-row .note-right{color:#6c757d; font-size:12px; text-align:right;}
+  /* Tom Select — компактно */
+  .ts-compact + .ts-wrapper{display:block;}
+  .ts-wrapper.multi .ts-control{min-height:34px; padding:3px 6px;}
+  .ts-wrapper.multi .ts-control .item{margin:2px 4px 2px 0; padding:2px 6px; border-radius:12px; font-size:12px;}
+  .ts-dropdown{border-radius:6px; box-shadow:0 10px 24px rgba(0,0,0,.08);}
+  #targets-table .icon-16{cursor:pointer; opacity:.9;} #targets-table .icon-16:hover{opacity:1;}
+  
+  #targetsModal .ts-wrapper {
+    width: 100%;
+  }
+  /* Сам dropdown TomSelect — высокий */
+  #targetsModal .ts-dropdown {
+    max-height: 70vh !important;
+    height: 70vh !important;
+  }
+
+  /* ВНУТРЕННЯЯ область со списком опций */
+  #targetsModal .ts-dropdown .ts-dropdown-content {
+    max-height: 100% !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+  }
+  /* ====== Размер модального окна ====== */
+  #targetsModal .modal-dialog {
+    max-width: 60%;
+    height: calc(100vh - 200px);
+    margin: 30px auto;
+  }
+
+  #targetsModal .modal-content {
+    height: 100%;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Тело модалки */
+  #targetsModal .modal-body {
+    flex: 1 1 auto;
+    min-height: 300px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Контейнер для TomSelect */
+  #targetsModal .modal-body-select {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* TomSelect внутри модалки */
+  #targetsModal .ts-wrapper {
+    flex: 1;
+    display: flex !important;
+    flex-direction: column;
+  }
+
+  /* Поле ввода TomSelect */
+  #targetsModal .ts-control {
+    flex-shrink: 0;
+  }
+
+  /* Dropdown TomSelect */
+  #targetsModal .ts-dropdown {
+    position: relative !important;
+    top: auto !important;
+    width: 100% !important;
+    flex: 1;
+    border-radius: 0 0 0.3rem 0.3rem;
+    border: 1px solid #dee2e6;
+    border-top: none;
+  }
+
+  #targetsModal .ts-dropdown .ts-dropdown-content {
+    max-height: none !important;
+    overflow-y: auto !important;
+  }
+  /* Зелёный тумблер */
+  .switch-green input:checked + .slider { background-color: #28a745; }
+</style>
+
+<script src="{% static 'admin_panel/js/task_common.js' %}"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const baseImg = "{% static 'admin_panel/img/' %}";
+  const log = TaskCommon.log;
+  const warn = TaskCommon.warn;
+  const err = TaskCommon.err;
+
+  /* ====== Верхняя панель ====== */
+  const globalToggle = document.getElementById("toggle-global");
+  const globalHidden = document.getElementById("is_global_active");
+  globalToggle?.addEventListener("change", () => {
+    globalHidden.value = globalToggle.checked ? "1" : "0";
+  });
+
+  const rowsBox   = document.getElementById("targets-rows");
+  const addBtn    = document.getElementById("add-target");
+  const rawSelect = document.getElementById("targets-multi");
+  if (!rawSelect) return err('#targets-multi not found');
+
+  /* ============ Фильтр источника ============ */
+  const sourceSelect = document.getElementById('source_id');
+  const sourceToggle = document.getElementById('source-owner-toggle');
+  TaskCommon.initSourceFilter(sourceSelect, sourceToggle);
+
+  /* ============ Состояние выбранных целей ============ */
+  const selectedIds = new Set();
+  const baseOptions = Array.from(rawSelect.querySelectorAll("option"))
+    .filter(o=>o.value)
+    .map(o=>({
+      value:o.value,
+      text:(o.textContent||'').trim(),
+      owner:o.dataset.owner||'',
+      dest:o.dataset.dest||'',
+      country:o.dataset.country||'',
+      category:o.dataset.category||'',
+      order:o.dataset.order||'',
+    }));
+
+  /* ============ Утилиты для строк ============ */
+  const actualRows = () => Array.from(rowsBox?.querySelectorAll(".target-row:not(.target-template)") || []);
+
+  function reindexTargets(){
+    actualRows().forEach((row, idx) => {
+      const label = row.querySelector('.target-label');
+      if (label) label.textContent = `Цель ${idx + 1}`;
+      const hidden = row.querySelector('input[type="hidden"][name^="is_active_"]');
+      if (hidden) hidden.name = `is_active_${idx}`;
+    });
+  }
+
+  function setIconsState(row, isActive){
+    const playIcon  = row.querySelector('.toggle-icon[data-value="1"]');
+    const pauseIcon = row.querySelector('.toggle-icon[data-value="0"]');
+    if (!playIcon || !pauseIcon) return;
+    playIcon.src  = baseImg + (isActive ? "play.png" : "play_gray.png");
+    pauseIcon.src = baseImg + (isActive ? "pause_gray.png" : "pause.png");
+  }
+
+  function addTargetRow(entityId){
+    const idStr = String(entityId);
+    if (selectedIds.has(idStr)) return;
+    
+    const targetData = baseOptions.find(opt => String(opt.value) === idStr);
+    if (!targetData) return;
+    
+    const tmpl = rowsBox.querySelector(".target-template");
+    if (!tmpl) return err('No .target-template found');
+    const clone = tmpl.cloneNode(true);
+    clone.classList.remove("d-none","target-template");
+    clone.dataset.value = idStr;
+
+    const hiddenInput = clone.querySelector('input[name="target_ids"]');
+    const nameSpan = clone.querySelector('.target-name');
+    if (hiddenInput) hiddenInput.value = idStr;
+    if (nameSpan && targetData) nameSpan.textContent = targetData.text;
+
+    const hidden = clone.querySelector('input[type="hidden"][name^="is_active_"]');
+    if (hidden) hidden.value = "1";
+    setIconsState(clone, true);
+
+    rowsBox.appendChild(clone);
+    selectedIds.add(idStr);
+    reindexTargets();
+    updateSelectedCount();
+    log('Row added', idStr);
+  }
+
+  function removeTargetRow(entityId, confirmNeeded = true){
+    const idStr = String(entityId);
+    
+    // Если нужно подтверждение и пользователь отменил - выходим
+    if (confirmNeeded && !confirm("Вы уверены, что хотите удалить эту цель?")) {
+      return;
+    }
+    
+    const row = actualRows().find(r => r.dataset.value === idStr);
+    if (row) row.remove();
+    selectedIds.delete(idStr);
+    reindexTargets();
+    updateSelectedCount();
+    log('Row removed', idStr);
+  }
+
+  /* Клики по строкам */
+  rowsBox?.addEventListener("click", (e) => {
+    const row = e.target.closest(".target-row");
+    if (!row) return;
+
+    if (e.target.closest(".remove-target")){
+      const id = row.dataset.value || row.querySelector('input[name="target_ids"]')?.value || "";
+      if (id) removeTargetRow(id, true); // С подтверждением при клике на крестик
+      return;
+    }
+    const tgl = e.target.closest(".toggle-icon");
+    if (tgl){
+      const hidden = row.querySelector('input[type="hidden"][name^="is_active_"]');
+      if (hidden) hidden.value = tgl.dataset.value;
+      setIconsState(row, tgl.dataset.value === "1");
+    }
+  });
+
+  /* Ручное "Добавить новую" */
+  addBtn?.addEventListener("click", () => {
+    const tmpl = rowsBox.querySelector(".target-template");
+    if (!tmpl) return err('No .target-template found for add');
+    const clone = tmpl.cloneNode(true);
+    clone.classList.remove("d-none","target-template");
+    clone.dataset.value = "";
+    const hiddenInput = clone.querySelector('input[name="target_ids"]');
+    if (hiddenInput) hiddenInput.value = "";
+    const hidden = clone.querySelector('input[type="hidden"][name^="is_active_"]');
+    if (hidden) hidden.value = "1";
+    setIconsState(clone, true);
+    rowsBox.appendChild(clone);
+    reindexTargets();
+    updateSelectedCount();
+    log('Manual row added');
+  });
+
+  /* ============ Модальное окно выбора целей ============ */
+  let currentDest = "Библиотека", currentOwner = null, currentGroup = 'order';
+  let ts; // Глобальная переменная для TomSelect
+
+  // Функция обновления счетчика выбранных целей
+  function updateSelectedCount() {
+    const count = selectedIds.size;
+    document.getElementById('selected-count').textContent = `Выбрано: ${count}`;
+  }
+
+  // Функция открытия модального окна
+  function openTargetsModal() {
+    $('#targetsModal').modal('show');
+    // Восстанавливаем выбранные элементы в TomSelect
+    setTimeout(() => {
+      refreshTomSelect();
+    }, 300);
+  }
+
+  // Функция применения выбора
+  function applySelection() {
+    $('#targetsModal').modal('hide');
+  }
+
+  function initTomSelect() {
+    ts = new TomSelect("#targets-multi",{
+      plugins: [],
+      persist: false,
+      create: false,
+      hideSelected: false,
+      maxOptions: 5000,
+      selectOnTab: false,
+      openOnFocus: true,
+      placeholder: '— выберите цели —',
+      valueField: 'value',
+      labelField: 'text',
+      searchField: ['text'],
+      
+      onOptionSelect: function(e, option){
+        e.preventDefault();
+        e.stopPropagation();
+        const id = option.getAttribute('data-value');
+        if (!id || id.startsWith('group_')) return; // Игнорируем заголовки групп
+        
+        TaskCommon.toggleSelection(id, selectedIds, addTargetRow, removeTargetRow, refreshTomSelect);
+      },
+      
+      render: {
+        option: (data, escape) => {
+          // Если это заголовок группы - отображаем жирным и без чекбокса
+          if (data.value.startsWith('group_')) {
+            return `<div class="font-weight-bold py-2 px-3 bg-light border-bottom group-header" style="cursor: pointer; user-select: none;" data-group="${escape(data.text)}">${escape(data.text)}</div>`;
+          }
+          
+          const isChecked = selectedIds.has(String(data.value));
+          return `
+          <div class="d-flex align-items-center py-1 px-3">
+              <input type="checkbox" class="opt-check mr-2" data-val="${escape(data.value)}" ${isChecked ? 'checked' : ''}>
+              <span>${escape(data.text)}</span>
+          </div>`;
+        }
+      },
+      
+      onInitialize: function(){
+        this.clear(true);
+        this.on('item_add', (v)=> this.removeItem(v, true));
+        this.control_input.addEventListener('keydown', (ev)=>{
+          if (ev.key === 'Enter' || ev.key === 'Tab') { 
+            ev.preventDefault(); 
+            if (ev.key === 'Enter') {
+              this.close();
+            }
+          }
+        });
+      },
+      
+      onDropdownOpen: function() {
+        setTimeout(() => {
+          const dropdown = this.dropdown_content;
+          if (dropdown) {
+            dropdown.removeEventListener('click', handleDropdownClick);
+            dropdown.addEventListener('click', handleDropdownClick);
+          }
+        }, 10);
+      }
+    });
+  }
+
+  function handleDropdownClick(ev) {
+    TaskCommon.handleDropdownClick(ev, ts, selectedIds, addTargetRow, removeTargetRow, refreshTomSelect, currentGroup, baseOptions);
+  }
+
+  // Функции фильтрации и группировки
+  function passFilters(ent){
+    return TaskCommon.passFilters(ent, currentDest, currentOwner);
+  }
+
+  function sortByGrouping(arr){
+    return TaskCommon.sortByGrouping(arr, currentGroup);
+  }
+
+  function refreshTomSelect() {
+    // Не перестраиваем весь список, а только обновляем чекбоксы
+    if (ts.dropdown_content) {
+        const options = ts.dropdown_content.querySelectorAll('.option');
+        options.forEach(option => {
+            const value = option.getAttribute('data-value');
+            const checkbox = option.querySelector('.opt-check');
+            if (checkbox && !value.startsWith('group_')) {
+                checkbox.checked = selectedIds.has(value);
+            }
+        });
+    }
+  }
+
+  function refreshTomSelectWithRebuild() {
+      // Эта функция используется только когда действительно нужно перестроить список (смена фильтров/группировки)
+      let filtered = sortByGrouping(baseOptions.filter(passFilters));
+      
+      // Если группировка по странам или категориям, добавляем заголовки групп
+      if (currentGroup === 'country' || currentGroup === 'category') {
+          const groupedOptions = [];
+          const groups = {};
+          const groupField = currentGroup;
+          
+          // Группируем опции
+          filtered.forEach(option => {
+              const groupName = option[groupField] || 'Без группы';
+              if (!groups[groupName]) {
+                  groups[groupName] = [];
+              }
+              groups[groupName].push(option);
+          });
+          
+          // Сортируем группы по имени и добавляем в результат
+          Object.keys(groups).sort().forEach(groupName => {
+              // Добавляем заголовок группы (нельзя выбрать)
+              groupedOptions.push({
+                  value: `group_${groupName}`,
+                  text: groupName,
+                  isGroupHeader: true
+              });
+              
+              // Добавляем опции этой группы
+              groups[groupName].forEach(option => {
+                  groupedOptions.push(option);
+              });
+          });
+          
+          filtered = groupedOptions;
+      }
+      
+      const optionsWithCheck = filtered.map(o => ({
+          ...o, 
+          _checked: selectedIds.has(String(o.value))
+      }));
+      
+      ts.clearOptions();
+      ts.addOptions(optionsWithCheck);
+      ts.refreshOptions(false);
+  }
+
+  // Обработчики событий для модального окна
+  document.getElementById('open-targets-modal')?.addEventListener('click', openTargetsModal);
+  document.getElementById('apply-selection')?.addEventListener('click', applySelection);
+
+  // Закрытие модального окна при клике вне его
+  document.getElementById('targetsModal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+      $('#targetsModal').modal('hide');
+    }
+  });
+
+  // Кнопки фильтров
+  const destBtns  = document.querySelectorAll(".dest-btn");
+  const ownerBtns = document.querySelectorAll(".owner-btn");
+  const groupBtns = document.querySelectorAll(".group-btn");
+
+  // По умолчанию активна кнопка "Библиотека"
+  destBtns.forEach(btn => {
+    if (btn.dataset.dest === 'Библиотека') {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+  
+  ownerBtns.forEach(btn => btn.classList.remove('active'));
+  
+  // По умолчанию активна группировка по порядку
+  groupBtns.forEach(btn => {
+    if (btn.dataset.group === 'order') {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  function toggleExclusive(btns, btn, type){
+    const wasActive = btn.classList.contains('active');
+    btns.forEach(b => b.classList.remove('active'));
+    
+    if (wasActive) {
+        if (type === 'dest') currentDest = null;
+        if (type === 'owner') currentOwner = null;
+        if (type === 'group') {
+            btn.classList.add('active');
+            currentGroup = btn.dataset.group;
+        }
+    } else {
+        btn.classList.add('active');
+        if (type === 'dest') currentDest = btn.dataset.dest;
+        if (type === 'owner') currentOwner = btn.dataset.owner;
+        if (type === 'group') currentGroup = btn.dataset.group;
+    }
+    
+    // При смене фильтров/группировки нужно перестроить список
+    refreshTomSelectWithRebuild();
+  }
+  
+  destBtns.forEach(b => b.addEventListener("click", () => toggleExclusive(destBtns, b, "dest")));
+  ownerBtns.forEach(b => b.addEventListener("click", () => toggleExclusive(ownerBtns, b, "owner")));
+  groupBtns.forEach(b => b.addEventListener("click", () => toggleExclusive(groupBtns, b, "group")));
+
+  /* ============ Круглая кнопка "Удалять" ============ */
+  const afterPublishToggle = document.getElementById('after-publish-toggle');
+  if (afterPublishToggle) {
+    const afterPublishHidden = document.getElementById('after_publish_value');
+    
+    // По умолчанию выключено (checkbox не checked)
+    const checkbox = afterPublishToggle.querySelector('input[type="checkbox"]');
+    checkbox.checked = false;
+    afterPublishHidden.value = 'cycle';
+    
+    afterPublishToggle.addEventListener('click', function() {
+      checkbox.checked = !checkbox.checked;
+      afterPublishHidden.value = checkbox.checked ? 'remove' : 'cycle';
+    });
+  }
+
+  /* ============ Инициализация ============ */
+  // Инициализация Tom Select
+  initTomSelect();
+  
+  // Инициализация счетчика
+  updateSelectedCount();
+
+  /* Сабмит */
+  const formEl = document.getElementById("main-form");
+  formEl?.addEventListener("submit", (e) => {
+    rowsBox?.querySelectorAll('input[name="target_ids"]').forEach(input => {
+      if (!input.value || input.value.trim() === "") input.closest(".target-row")?.remove();
+    });
+    const cnt = rowsBox?.querySelectorAll(".target-row:not(.target-template)").length || 0;
+    if (cnt === 0) {
+      if (!confirm("Вы не выбрали ни одной цели. Сохранить без целей?")) {
+        e.preventDefault();
+      }
+    }
+  });
+});
+</script>
+
+{% endblock %}

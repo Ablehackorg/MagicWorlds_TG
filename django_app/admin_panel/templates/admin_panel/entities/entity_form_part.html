@@ -1,0 +1,229 @@
+<!-- templates/admin_panel/entities/entity_form_part_channel_sync.html -->
+{% load static %}
+
+<!-- Основная информация -->
+<div class="bordered-box p-3 bg-white rounded mb-4">
+  <h4 class="mb-3">Основная информация</h4>
+  
+  <!-- Ссылка на вступление -->
+  <div class="form-row mb-3">
+    <div class="left" style="width:220px;">Ссылка на вступление</div>
+    <div class="right d-flex align-items-center" style="gap:10px;">
+      <input type="text" name="{{ entity_type }}_link" id="{{ entity_type }}_link" class="form-control" style="min-width: 300px; max-width:500px;"
+             value="{{ entity.link|default:'' }}" placeholder="Никнейм или url канала-группы">
+      <button type="button" class="btn btn-outline-secondary search-btn" data-entity-type="{{ entity_type }}">Поиск</button>
+      <button type="button" class="btn btn-outline-secondary open-link-btn" data-entity-type="{{ entity_type }}">
+        <img src="{% static 'admin_panel/img/search.png' %}" alt="Открыть" class="icon-16">
+      </button>
+    </div>
+  </div>
+
+  <!-- Телеграм ID -->
+  <div class="form-row mb-3">
+    <div class="left" style="width:220px;">Телеграм ID</div>
+    <div class="right d-flex align-items-center" style="gap:10px;">
+      <input type="number" step="1" name="{{ entity_type }}_telegram_id" id="{{ entity_type }}_telegram_id" style="min-width:500px; max-width:600px;" class="form-control"
+             value="{{ entity.telegram_id|default:'' }}">
+      <button type="button" class="btn btn-info update-btn" data-entity-type="{{ entity_type }}">Обновить</button>
+    </div>
+  </div>
+
+  <!-- Название канала-группы -->
+  <div class="form-row mb-3">
+    <div class="left" style="width:220px;">Название канала-группы</div>
+    <div class="right">
+      <input type="text" name="{{ entity_type }}_name" id="{{ entity_type }}_name" class="form-control" style="min-width:500px; max-width:600px;"
+             value="{{ entity.name|default:'' }}">
+    </div>
+  </div>
+
+  <!-- Картинка -->
+  <div class="form-row mb-3">
+    <div class="left" style="width:220px;">Картинка</div>
+    <div class="right">
+      <div class="image-upload" style="max-width:250px;">
+        <input type="file" name="{{ entity_type }}_photo" id="{{ entity_type }}_photo" class="d-none" accept="image/*">
+        <div id="{{ entity_type }}_preview" class="preview-box d-flex align-items-center justify-content-center" style="height:140px; border:1px solid #ddd; border-radius:4px;">
+          {% if entity.photo %}
+            <img src="{{ entity.photo.url }}" alt="preview" style="width:100%;height:100%;object-fit:cover;">
+          {% else %}
+            <span class="text-muted">Нет изображения</span>
+          {% endif %}
+        </div>
+        <div class="mt-2 d-flex" style="gap:8px;">
+          <button type="button" class="btn btn-sm btn-outline-primary pick-photo-btn" data-entity-type="{{ entity_type }}">Загрузить</button>
+          <button type="button" class="btn btn-sm btn-outline-danger clear-photo-btn" data-entity-type="{{ entity_type }}" {% if not entity.photo %}disabled{% endif %}>Очистить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Информация о канале-группе -->
+  <div class="form-row mb-3">
+    <div class="left" style="width:220px;">Информация о канале-группе</div>
+    <div class="right">
+      <textarea name="{{ entity_type }}_description" id="{{ entity_type }}_description" class="form-control" rows="4">{{ entity.description|default:'' }}</textarea>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const entityType = '{{ entity_type }}';
+  
+  // Управление переключателями тегов и суффикса
+  const toggleTags = document.getElementById(`${entityType}_toggle-tags`);
+  const hiddenTags = document.getElementById(`${entityType}_is_add_tags`);
+  const toggleSuffix = document.getElementById(`${entityType}_toggle-suffix`);
+  const hiddenSuffix = document.getElementById(`${entityType}_is_add_suffix`);
+
+  if (toggleTags && hiddenTags) {
+    toggleTags.checked = hiddenTags.value === "1";
+    toggleTags.addEventListener("change", () => {
+      hiddenTags.value = toggleTags.checked ? "1" : "0";
+    });
+  }
+
+  if (toggleSuffix && hiddenSuffix) {
+    toggleSuffix.checked = hiddenSuffix.value === "1";
+    toggleSuffix.addEventListener("change", () => {
+      hiddenSuffix.value = toggleSuffix.checked ? "1" : "0";
+    });
+  }
+
+  // Управление загрузкой изображения
+  const photoInput = document.getElementById(`${entityType}_photo`);
+  const previewBox = document.getElementById(`${entityType}_preview`);
+  const pickBtn = document.querySelector(`.pick-photo-btn[data-entity-type="${entityType}"]`);
+  const clearBtn = document.querySelector(`.clear-photo-btn[data-entity-type="${entityType}"]`);
+
+  function showPreview(src) {
+    previewBox.innerHTML = `<img src="${src}" alt="preview" style="width:100%;height:100%;object-fit:cover;">`;
+    if (clearBtn) clearBtn.disabled = false;
+  }
+
+  function clearPreview() {
+    if (photoInput) photoInput.value = '';
+    previewBox.innerHTML = `<span class="text-muted">Нет изображения</span>`;
+    if (clearBtn) clearBtn.disabled = true;
+  }
+
+  if (photoInput) {
+    photoInput.addEventListener('change', e => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return clearPreview();
+      const r = new FileReader();
+      r.onload = ev => showPreview(ev.target.result);
+      r.readAsDataURL(f);
+    });
+  }
+  
+  if (pickBtn) pickBtn.addEventListener('click', () => photoInput.click());
+  if (clearBtn) clearBtn.addEventListener('click', clearPreview);
+  if (previewBox) previewBox.addEventListener('click', () => photoInput.click());
+
+  // Обработка кнопок у поля ссылки
+  const searchBtn = document.querySelector(`.search-btn[data-entity-type="${entityType}"]`);
+  const openLinkBtn = document.querySelector(`.open-link-btn[data-entity-type="${entityType}"]`);
+  const updateBtn = document.querySelector(`.update-btn[data-entity-type="${entityType}"]`);
+  const linkInput = document.getElementById(`${entityType}_link`);
+  
+  const PARSER_URL = (window.API && window.API.PARSER) || "/api/parse_channel";
+
+  // Функция автозаполнения
+  async function autoFillFromLink() {
+    const link = linkInput.value.trim();
+    if (!link) return alert("Введите ссылку для поиска");
+
+    try {
+      const resp = await fetch(PARSER_URL, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ link })
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || data.error || "Ошибка API");
+
+      document.getElementById(`${entityType}_telegram_id`).value = data.telegram_id ?? data.tg_id ?? "";
+      document.getElementById(`${entityType}_name`).value = data.name || "";
+      if (data.description) {
+        document.getElementById(`${entityType}_description`).value = data.description;
+      }
+      if (data.tags) document.getElementById(`${entityType}_tags`).value = data.tags;
+
+      // делаем поля readOnly
+      linkInput.readOnly = true;
+      document.getElementById(`${entityType}_telegram_id`).readOnly = true;
+      document.getElementById(`${entityType}_description`).readOnly = true;
+      document.getElementById(`${entityType}_name`).readOnly = true;
+      if (pickBtn) pickBtn.disabled = true;
+
+      if (data.photo) {
+        const photoUrl = data.photo;
+        showPreview(photoUrl);
+
+        try {
+          const imgResp = await fetch(photoUrl);
+          if (imgResp.ok) {
+            const rawCT = (imgResp.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+            if (rawCT.startsWith("image/")) {
+              const buf = await imgResp.arrayBuffer();
+              const ext = (rawCT.split("/")[1] || "jpg").replace(/[^a-z0-9]/gi, "");
+              const file = new File([buf], `autofill.${ext}`, { type: rawCT });
+              const dt = new DataTransfer();
+              dt.items.add(file);
+              photoInput.files = dt.files;
+
+              // блокируем управление
+              if (pickBtn) pickBtn.style.display = "none";
+              if (clearBtn) clearBtn.style.display = "none";
+              previewBox.style.cursor = "default";
+              previewBox.onclick = null;
+            }
+          }
+        } catch (err) {
+          console.warn("Ошибка загрузки фото:", err);
+        }
+      } else {
+        clearPreview();
+      }
+
+    } catch (e) {
+      alert("Автозаполнение не удалось: " + e.message);
+    }
+  }
+
+  // Кнопка "Поиск" - автозаполнение
+  if (searchBtn && linkInput) {
+    searchBtn.addEventListener('click', autoFillFromLink);
+  }
+
+  // Кнопка "Обновить" - идентична "Поиск"
+  if (updateBtn && linkInput) {
+    updateBtn.addEventListener('click', autoFillFromLink);
+  }
+
+  // Кнопка с иконкой - открытие ссылки
+  if (openLinkBtn && linkInput) {
+    openLinkBtn.addEventListener('click', () => {
+      const link = linkInput.value.trim();
+      if (link) {
+        let url = link;
+        if (!url.startsWith('http')) {
+          url = 'https://t.me/' + link.replace('@', '');
+        }
+        window.open(url, '_blank');
+      } else {
+        alert('Введите ссылку для открытия');
+      }
+    });
+  }
+});
+</script>
+
+<style>
+  .bordered-box { border:1px solid #e0e0e0; }
+  .form-row { display:flex; align-items:center; }
+  .form-row .left { font-weight:600; color:#444; }
+  .form-row .right { flex:1; }
+</style>

@@ -1,0 +1,304 @@
+{% extends "adminlte/base.html" %}
+{% block content %}
+
+<style>
+  .grid-bg {
+    background-image: linear-gradient(#e9e9e9 1px, transparent 1px),
+                      linear-gradient(90deg, #e9e9e9 1px, transparent 1px);
+    background-size: 24px 24px;
+    padding: 16px;
+    border-radius: 6px;
+  }
+  .wb-box {
+    background: rgba(255,255,255,0.95);
+    border: 1px solid #cfcfcf;
+    padding: 12px;
+  }
+  .hdr {
+    display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+  .hdr .left small { color:#666; }
+  .hdr .right { display:flex; gap:8px; flex-wrap:wrap; }
+  .section { border: 1px solid #bbb; margin-top:14px; }
+  .section > .title { background:#d9d9d9; padding:8px 10px; font-weight:700; }
+  .section > .body { padding: 12px; }
+  .field { display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+  .field label { width: 200px; font-weight:600; }
+  table.wb { width:100%; border-collapse: collapse; }
+  table.wb td, table.wb th { border:1px solid #111; padding:6px 8px; font-size: 14px; }
+  table.wb th { background:#f4f4f4; font-weight:700; }
+  .tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+  .tab { display:none; }
+  .tab.active { display:block; }
+  .err { color:#c0392b; font-weight:700; }
+</style>
+
+<div class="grid-bg">
+  <div class="wb-box">
+
+    <div class="hdr">
+      <div class="left">
+        <small>Плагины &gt; Бот погоды</small>
+        <h3 style="margin:0;">
+          {% if task %}Задача #{{ task.id }}{% else %}Новая задача{% endif %}
+        </h3>
+      </div>
+
+      <div class="right">
+        <button class="btn btn-success" form="mainForm" type="submit">Сохранить в БД</button>
+        <a class="btn btn-secondary" href="{% url 'admin_panel:weatherbot_tasks_view' %}">Отмена</a>
+
+        {% if task %}
+        <form method="post" style="display:inline;">
+          {% csrf_token %}
+          <button class="btn btn-warning" name="send_now" value="1">Отправить сейчас</button>
+        </form>
+
+        <form method="post" style="display:inline;" onsubmit="return confirm('Удалить задачу?');">
+          {% csrf_token %}
+          <button class="btn btn-danger" name="delete_task" value="1">Удалить</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <form id="mainForm" method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+
+      <div class="section">
+        <div class="title">Город, страна</div>
+        <div class="body">
+          <div class="field">
+            <label>Выбор локации</label>
+            <select id="countrySelect" name="country">
+              <option value="">Выберите из списка</option>
+              {% for c in countries %}
+                <option value="{{ c.id }}" {% if task and task.city.country.id == c.id %}selected{% endif %}>
+                  {{ c.name }}
+                </option>
+              {% endfor %}
+            </select>
+
+            <select id="citySelect" name="city">
+              <option value="">
+                {% if task %}{{ task.city.name }}{% else %}Выберите из списка{% endif %}
+              </option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="title">Настройки публикации</div>
+        <div class="body">
+
+          <div class="field">
+            <label>Включено</label>
+            <input type="checkbox" name="is_enabled" {% if not task or task.is_enabled %}checked{% endif %}>
+          </div>
+
+          <div class="field">
+            <label>Утренний пост (время)</label>
+            <input type="time" name="morning_time"
+                   value="{% if task %}{{ task.morning_time|time:'H:i' }}{% else %}10:30{% endif %}">
+          </div>
+
+          <div class="field">
+            <label>Вечерний пост (время)</label>
+            <input type="time" name="evening_time"
+                   value="{% if task %}{{ task.evening_time|time:'H:i' }}{% else %}20:30{% endif %}">
+          </div>
+
+          <div class="field">
+            <label>Только летние фона</label>
+            <input type="checkbox" name="summer_only" {% if task and task.summer_only_backgrounds %}checked{% endif %}>
+          </div>
+
+          <div class="field">
+            <label>Дефолтные фоны (день/ночь)</label>
+            <input type="checkbox" name="use_default_backgrounds" {% if not task or task.use_default_backgrounds %}checked{% endif %}>
+            <small style="color:#666;">Берутся из <code>static/weatherbot/backgrounds/day|night/</code></small>
+          </div>
+
+          <div class="field">
+            <label>Дефолтные иконки</label>
+            <input type="checkbox" name="use_default_icons" {% if not task or task.use_default_icons %}checked{% endif %}>
+            <small style="color:#666;">Лежат в <code>static/weatherbot/icons/</code></small>
+          </div>
+
+          <div class="field">
+            <label>GIF (солнечно)</label>
+            <input type="file" name="gif_sunny">
+          </div>
+          <div class="field">
+            <label>GIF (пасмурно)</label>
+            <input type="file" name="gif_cloudy">
+          </div>
+          <div class="field">
+            <label>GIF (осадки)</label>
+            <input type="file" name="gif_precip">
+          </div>
+
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="title">Цели (каналы и группы)</div>
+        <div class="body">
+
+          <div class="field">
+            <label>Добавить цель</label>
+            <select name="add_entity_id" style="min-width:420px;">
+              <option value="">Выберите из выпадающего списка</option>
+              {% for e in entities %}
+                <option value="{{ e.id }}">{{ e.label }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn btn-secondary" type="submit">Добавить</button>
+          </div>
+
+          <table class="wb">
+            <thead>
+              <tr>
+                <th>Добавленные цели</th>
+                <th style="width:90px;">—</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for t in selected_targets %}
+              <tr>
+                <td>{{ t.label }}</td>
+                <td style="text-align:center;">
+                  <button class="btn btn-danger btn-sm" name="remove_target_id" value="{{ t.id }}">X</button>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="2" style="text-align:center;">Пока нет целей</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="title">Журнал публикаций</div>
+        <div class="body">
+
+          <div class="tabs">
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="showTab('today')">Сегодня</button>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="showTab('yesterday')">Вчера</button>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="showTab('prev')">Позавчера</button>
+            <a class="btn btn-info btn-sm" href="">Обновить журнал</a>
+          </div>
+
+          <div id="tab_today" class="tab active">
+            <table class="wb">
+              <thead><tr><th>Дата</th><th>Тип</th><th>Статус</th><th>Ошибка</th></tr></thead>
+              <tbody>
+                {% for l in logs_today %}
+                <tr>
+                  <td>{{ l.created_at }}</td>
+                  <td>{{ l.get_kind_display }}</td>
+                  <td>{% if l.is_ok %}✅{% else %}❌{% endif %}</td>
+                  <td class="{% if not l.is_ok %}err{% endif %}">{{ l.error }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" style="text-align:center;">Нет записей</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <div id="tab_yesterday" class="tab">
+            <table class="wb">
+              <thead><tr><th>Дата</th><th>Тип</th><th>Статус</th><th>Ошибка</th></tr></thead>
+              <tbody>
+                {% for l in logs_yesterday %}
+                <tr>
+                  <td>{{ l.created_at }}</td>
+                  <td>{{ l.get_kind_display }}</td>
+                  <td>{% if l.is_ok %}✅{% else %}❌{% endif %}</td>
+                  <td class="{% if not l.is_ok %}err{% endif %}">{{ l.error }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" style="text-align:center;">Нет записей</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <div id="tab_prev" class="tab">
+            <table class="wb">
+              <thead><tr><th>Дата</th><th>Тип</th><th>Статус</th><th>Ошибка</th></tr></thead>
+              <tbody>
+                {% for l in logs_prev %}
+                <tr>
+                  <td>{{ l.created_at }}</td>
+                  <td>{{ l.get_kind_display }}</td>
+                  <td>{% if l.is_ok %}✅{% else %}❌{% endif %}</td>
+                  <td class="{% if not l.is_ok %}err{% endif %}">{{ l.error }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" style="text-align:center;">Нет записей</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <button class="btn btn-success" type="submit">Сохранить в БД</button>
+      </div>
+
+    </form>
+
+  </div>
+</div>
+
+<script>
+  function showTab(name) {
+    document.getElementById("tab_today").classList.remove("active");
+    document.getElementById("tab_yesterday").classList.remove("active");
+    document.getElementById("tab_prev").classList.remove("active");
+
+    document.getElementById("tab_" + name).classList.add("active");
+  }
+
+  async function loadCities(countryId, selectedCityId) {
+    const citySelect = document.getElementById("citySelect");
+    citySelect.innerHTML = "<option value=''>Загрузка...</option>";
+
+    const urlTpl = "{% url 'admin_panel:weatherbot_cities_api' 0 %}";
+    const url = urlTpl.replace("/0/", "/" + countryId + "/");
+
+    const r = await fetch(url);
+    const data = await r.json();
+
+    citySelect.innerHTML = "<option value=''>Выберите из списка</option>";
+    (data.cities || []).forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c.id;
+      opt.textContent = c.name;
+      if (selectedCityId && String(selectedCityId) === String(c.id)) opt.selected = true;
+      citySelect.appendChild(opt);
+    });
+  }
+
+  document.getElementById("countrySelect").addEventListener("change", (e) => {
+    const cid = e.target.value;
+    if (cid) loadCities(cid, null);
+  });
+
+  (function init() {
+    const countrySelect = document.getElementById("countrySelect");
+    const cid = countrySelect.value;
+    {% if task %}
+      if (cid) loadCities(cid, "{{ task.city.id }}");
+    {% endif %}
+  })();
+</script>
+
+{% endblock %}

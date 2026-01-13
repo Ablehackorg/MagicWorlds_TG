@@ -1,0 +1,308 @@
+{% extends "adminlte/base.html" %}
+{% load static %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+
+    <!-- ===== Заголовок ===== -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h1 class="mb-0">{{ page_title }}</h1>
+
+      <!-- Справа: тумблер активности + Удалить -->
+      <div class="d-flex align-items-center" style="gap:12px;">
+        <span>Выкл</span>
+        <label class="switch switch-blue mb-0">
+          <input type="checkbox" id="toggle-active" {% if task and task.is_active %}checked{% endif %}>
+          <span class="slider round"></span>
+        </label>
+        <span>Вкл</span>
+        <input type="hidden" name="is_active" id="is_active" form="main-form" value="{% if task and task.is_active %}1{% else %}0{% endif %}">
+
+        {% if task %}
+        <form method="post" action="{% url 'admin_panel:old_views_task_delete' task.id %}" 
+              onsubmit="return confirm('Удалить задачу #{{ task.id }}?');">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Удалить</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ===== Форма ===== -->
+    <form method="post" id="main-form">
+      {% csrf_token %}
+      <div class="task-form bordered-box p-3 bg-white rounded mb-4">
+
+        <!-- Канал-группа -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Канал-группа</div>
+          <div class="right">
+            <select name="target_id" class="form-control" required>
+              <option value="">Выберите канал из списка</option>
+              {% for e in entities %}
+                <option value="{{ e.id }}" {% if task and task.target_id == e.id %}selected{% endif %}>
+                  {{ e.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Раздел -->
+        <div class="section-bar mt-3 mb-2"><strong>Нормализатор просмотров</strong></div>
+
+        <!-- Нормализовать посты -->
+        <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;">Нормализовать посты</div>
+          <div class="right d-flex flex-wrap align-items-center" style="gap:16px;">
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="posts_normalization" value="last_100"
+                     {% if not task or task.posts_normalization == "last_100" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Последние 100</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="posts_normalization" value="last_200"
+                     {% if task and task.posts_normalization == "last_200" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Последние 200</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="posts_normalization" value="last_300"
+                     {% if task and task.posts_normalization == "last_300" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Последние 300</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="posts_normalization" value="first_100"
+                     {% if task and task.posts_normalization == "first_100" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Первые 100</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="posts_normalization" value="first_200"
+                     {% if task and task.posts_normalization == "first_200" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Первые 200</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="posts_normalization" value="first_300"
+                     {% if task and task.posts_normalization == "first_300" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Первые 300</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Охват ERR-24 -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Охват ERR-24</div>
+          <div class="right d-flex align-items-center" style="gap:10px;">
+            <input type="number" name="view_coefficient" min="1" max="100" class="form-control" style="width:100px;"
+                   value="{{ task.view_coefficient|default:50 }}" required>
+            <span>%</span>
+          </div>
+        </div>
+
+        <!-- Кратность оценки -->
+        <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;">Кратность оценки</div>
+          <div class="right d-flex flex-wrap align-items-center" style="gap:16px;">
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="views_multiplier" value="50"
+                     {% if not task or task.views_multiplier == 50 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">50</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="views_multiplier" value="100"
+                     {% if task and task.views_multiplier == 100 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">100</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="views_multiplier" value="200"
+                     {% if task and task.views_multiplier == 200 %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">200</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Период нормализации -->
+        <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;">Период нормализации</div>
+          <div class="right d-flex flex-wrap align-items-center" style="gap:16px;">
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="normalization_mode" value="monthly"
+                     {% if not task or task.normalization_mode == "monthly" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">1 раз в месяц</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="normalization_mode" value="bi_monthly"
+                     {% if task and task.normalization_mode == "bi_monthly" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">2 раза в месяц</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="normalization_mode" value="weekly"
+                     {% if task and task.normalization_mode == "weekly" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">1 раз в неделю</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="normalization_mode" value="bi_weekly"
+                     {% if task and task.normalization_mode == "bi_weekly" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">2 раза в неделю</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="normalization_mode" value="daily"
+                     {% if task and task.normalization_mode == "daily" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Ежедневно</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Когда -->
+        <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;">Когда</div>
+          <div class="right d-flex flex-wrap align-items-center" style="gap:16px;">
+            <span>В 1-й день периода в</span>
+            <input type="time" name="normalization_time" class="form-control" style="width:120px;"
+                   value="{{ normalization_time_display|default:'00:00' }}">
+            <span>часов</span>
+          </div>
+        </div>
+
+        <!-- Сейчас, разово -->
+        <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;"></div>
+          <div class="right">
+            <button type="button" id="run-once-btn" class="btn btn-primary">
+              Сейчас, разово
+            </button>
+            <input type="hidden" name="run_once" id="run_once" value="0">
+          </div>
+        </div>
+
+        <!-- Исключая последние -->
+        <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;">Исключая последние</div>
+          <div class="right d-flex flex-wrap align-items-center" style="gap:16px;">
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="exclude_period" value="1_day"
+                     {% if not task or task.exclude_period == "1_day" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">1 сут</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="exclude_period" value="2_days"
+                     {% if task and task.exclude_period == "2_days" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">2 сут</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="exclude_period" value="1_week"
+                     {% if task and task.exclude_period == "1_week" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">1 неделя</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="exclude_period" value="2_weeks"
+                     {% if task and task.exclude_period == "2_weeks" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">2 недели</span>
+            </label>
+            <label class="circle-day d-flex align-items-center mb-1">
+              <input type="radio" name="exclude_period" value="none"
+                     {% if task and task.exclude_period == "none" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span class="day-label ml-1">Без исключений</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Кнопки -->
+        <div class="form-row mt-4">
+          <div class="left"></div>
+          <div class="right d-flex" style="gap:12px;">
+            <button type="submit" class="btn btn-success">Сохранить</button>
+            <a href="{% url 'admin_panel:old_views_tasks_view' %}" class="btn btn-secondary">Отмена</a>
+          </div>
+        </div>
+
+      </div>
+    </form>
+
+    <!-- ===== Таблица быстрого доступа ===== -->
+    <div class="bordered-box p-3 bg-white rounded">
+      <h3 class="mb-3">Все задачи старых просмотров</h3>
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover" data-sortable data-paginate>
+          <thead>
+            <tr>
+              <th>ID</th><th>Канал-группа</th><th>Статус</th>
+              <th>Период</th><th>Глубина</th><th>Подписчики</th>
+              <th>Охват ERR-24</th><th>Кратность</th><th>Расход мес.</th><th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in all_tasks %}
+            <tr>
+              <td class="text-center">{{ t.id }}</td>
+              <td>{{ t.target.name|default:"—" }}</td>
+              <td class="text-center">{% if t.is_active %}<span class="status-dot active"></span>{% else %}<span class="status-dot gray"></span>{% endif %}</td>
+              <td class="text-center">{{ t.get_normalization_mode_display }}</td>
+              <td class="text-center">{{ t.get_posts_normalization_display }}</td>
+              <td class="text-center">{{ t.subscribers_count }}</td>
+              <td class="text-center">{{ t.view_coefficient }}%</td>
+              <td class="text-center">{{ t.views_multiplier }}</td>
+              <td class="text-center">{{ t.monthly_expense_value|floatformat:2 }}</td>
+              <td class="text-center">
+                <a href="{% url 'admin_panel:old_views_task_edit' t.id %}">
+                  <img src="{% static 'admin_panel/img/edit.png' %}" class="icon-16">
+                </a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="10" class="text-center text-muted">Задачи отсутствуют</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const toggle = document.getElementById("toggle-active");
+  const hidden = document.getElementById("is_active");
+  if (toggle && hidden) toggle.addEventListener("change", () => hidden.value = toggle.checked ? "1" : "0");
+
+  // Обработка кнопки "Сейчас, разово"
+  const runOnceBtn = document.getElementById("run-once-btn");
+  const runOnceHidden = document.getElementById("run_once");
+  
+  if (runOnceBtn && runOnceHidden) {
+    runOnceBtn.addEventListener("click", () => {
+      runOnceHidden.value = "1";
+      document.getElementById("main-form").submit();
+    });
+  }
+});
+</script>
+
+<style>
+  .section-bar { font-weight:600; color:#444; border-bottom:1px solid #e0e0e0; padding-bottom:4px; margin-bottom:8px; }
+  .form-row { display:flex; align-items:center; }
+  .form-row .left { font-weight:600; color:#444; }
+  .form-row .right { flex:1; }
+  .dot { width:12px; height:12px; border-radius:50%; border:2px solid #007bff; display:inline-block; position:relative; }
+  .day-label { font-size:14px; color:#333; }
+</style>
+{% endblock %}

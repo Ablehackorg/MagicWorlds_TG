@@ -1,0 +1,47 @@
+<!-- templates/admin_panel/plugins/view_boost/section_block.html -->
+{% load filters %}
+<div class="bordered-box p-3 bg-white rounded mb-4">
+  <h3 class="mb-3">{{ title }}</h3>
+
+  <div class="row no-gutters align-items-start">
+
+    <!-- ===== LEFT SIDE: HOURS ===== -->
+    <div class="col-lg-5 pr-0">
+      <div class="sv-vert">
+
+        <!-- Теперь 4 столбика по 6 часов -->
+        <div class="sv-four-col">
+
+          {% for col in range_4cols %}
+          <div>
+            {% for h in col %}
+            <div class="sv-row-2">
+              <label class="sv-label">Час {{ h }}</label>
+              <input type="number" min="0" max="30"
+                     value="{{ DATA|get_item:h }}"
+                     class="form-control form-control-sm sv-input {{ PREFIX }}"
+                     name="{{ PREFIX }}_today_{{ h }}">
+            </div>
+            {% endfor %}
+          </div>
+          {% endfor %}
+
+        </div>
+
+        <!-- Итого по центру -->
+        <div class="sv-sum-container">
+          <div class="sv-sum">Итого: <span class="{{ PREFIX }}-sum">0</span> %</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== RIGHT SIDE: CHART ===== -->
+    <div class="col-lg-7 pl-0 d-flex align-items-start">
+      <!-- высота теперь будет подтягиваться автоматически -->
+      <div class="chart-container auto-size">
+        <canvas id="{{ chart_id }}"></canvas>
+      </div>
+    </div>
+
+  </div>
+</div>

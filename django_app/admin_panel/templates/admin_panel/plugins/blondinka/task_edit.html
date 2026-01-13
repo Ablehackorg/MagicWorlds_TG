@@ -1,0 +1,1536 @@
+{% extends "adminlte/base.html" %}
+{% load static %}
+{% load filters %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+
+    <!-- ===== Заголовок ===== -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <!-- слева: заголовок + сохранить/отмена -->
+      <div class="d-flex align-items-center">
+        <h1 class="mb-0 mr-3">{{ page_title }}</h1>
+        <div class="btn-toolbar" role="toolbar">
+          <button type="submit" form="main-form" class="btn btn-success mr-2">Сохранить в БД</button>
+          <a href="{% url 'admin_panel:blondinka_tasks_view' %}" class="btn btn-secondary">Отмена</a>
+        </div>
+      </div>
+
+      <!-- справа: тумблер и отдельная красная "Удалить" -->
+      <div class="d-flex align-items-center" style="gap:12px;">
+        <span>Выкл</span>
+        <label class="switch switch-blue mb-0">
+          <input type="checkbox" id="toggle-active" {% if task.is_active %}checked{% endif %}>
+          <span class="slider round"></span>
+        </label>
+        <span>Вкл</span>
+        <input type="hidden" name="is_active" id="is_active" form="main-form" value="{% if task.is_active %}1{% else %}0{% endif %}">
+
+        {% if task %}
+        <form method="post" action="{% url 'admin_panel:blondinka_task_delete' task.id %}"
+              onsubmit="return confirm('Удалить задачу #{{ task.id }}?');">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Удалить</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ===== Форма ===== -->
+    <form method="post" id="main-form" enctype="multipart/form-data">
+      {% csrf_token %}
+      
+      <!-- === БЛОК: Основные настройки === -->
+      <div class="section-bar">Основные настройки</div>
+      <div class="form-rows bordered-box p-3 bg-white rounded mb-4">
+        
+        <!-- Использовать аккаунт -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Использовать аккаунт</div>
+          <div class="right d-flex align-items-center" style="gap:16px;">
+            <select name="bot_id" class="form-control" style="min-width: 300px;" required>
+              <option value="">Выберите бота из списка</option>
+              {% for bot in bots %}
+                <option value="{{ bot.id }}" {% if task and task.bot_id == bot.id %}selected{% endif %}>
+                  {{ bot.name }}
+                </option>
+              {% endfor %}
+            </select>
+            <span class="text-muted">
+              Используется в <strong>{{ task.used_in_tasks_count|default:0 }}</strong> скриптах
+            </span>
+          </div>
+        </div>
+
+        <!-- Удалять пост через -->
+        <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;">Удалять пост через</div>
+          <div class="right d-flex flex-wrap align-items-center" style="gap:8px;">
+            {% for value, text in delete_post_choices %}
+              <label class="circle-day d-flex align-items-center mb-1" style="gap:4px;">
+                <input type="radio" name="delete_post_after" value="{{ value|default:'' }}"
+                       {% if task.delete_post_after == value %}checked{% endif %}>
+                <span class="dot"></span>
+                <span class="day-label">{{ text }}</span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+
+      </div>
+
+      <!-- === БЛОК: Бот работает в группе === -->
+      <div class="section-bar">Бот работает в группе</div>
+      <div class="form-rows bordered-box p-3 bg-white rounded mb-4">
+
+        <!-- Выбор группы-цели -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Выбрать группу-цель</div>
+          <div class="right d-flex align-items-center" style="gap:12px;">
+            <span>Своя</span>
+            <label class="switch switch-green mb-0">
+              <input type="checkbox" id="group-owner-filter" {% if task and task.group.owner == 'foreign' %}checked{% endif %}>
+              <span class="slider round"></span>
+            </label>
+            <span>Чужая</span>
+            
+            <select name="target_group_id" id="target_group_id" class="form-control" style="min-width: 300px;">
+              <option value="">— Выберите группу —</option>
+              {% for entity in entities %}
+                  <option value="{{ entity.id }}" data-owner="{{ entity.owner|default:'own' }}"
+                          {% if task and task.group_id == entity.id %}selected{% endif %}>
+                    {{ entity.name }}
+                  </option>
+              {% endfor %}
+            </select>
+            
+            <button type="button" class="btn btn-outline-secondary" id="openGroupBtn">
+              <img src="{% static 'admin_panel/img/search.png' %}" alt="Открыть" class="icon-16">
+            </button>
+          </div>
+        </div>
+
+        <!-- Полоса-разделитель -->
+        <!-- <div class="form-row mb-3">
+          <div class="left" style="width:220px;"></div>
+          <div class="right">
+            <hr style="margin: 16px 0; border-color: #dee2e6;">
+          </div>
+        </div> -->
+
+        <!-- Или - добавьте новую группу -->
+        <!-- <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Или - добавьте новую группу</div>
+          <div class="right d-flex align-items-center" style="gap:10px;">
+            <input type="text" name="link" id="link" class="form-control" style="min-width: 300px; max-width:500px;"
+                   placeholder="Никнейм или url канала-группы" value="{{ task.group.link|default:'' }}">
+            <button type="button" class="btn btn-outline-secondary" id="searchBtn">Поиск</button>
+            <button type="button" class="btn btn-outline-secondary" id="openLinkBtn">
+              <img src="{% static 'admin_panel/img/search.png' %}" alt="Открыть" class="icon-16">
+            </button>
+          </div>
+        </div> -->
+
+        <!-- Телеграм ID -->
+        <!-- <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Телеграм ID</div>
+          <div class="right d-flex align-items-center" style="gap:10px;">
+            <input type="number" step="1" name="telegram_id" id="telegram_id" class="form-control" 
+                   style="min-width: 200px; -moz-appearance: textfield; -webkit-appearance: none; appearance: none;"
+                   value="{{ task.group.telegram_id|default:'' }}" {% if not task %}required{% endif %}>
+            <button type="button" class="btn btn-outline-secondary" id="refreshTelegramBtn">Обновить</button>
+          </div>
+        </div> -->
+
+        <!-- Название группы -->
+        <!-- <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Название группы</div>
+          <div class="right">
+            <input type="text" name="name" id="name" class="form-control" 
+                   value="{{ task.group.name|default:'' }}" {% if not task %}required{% endif %}
+                   placeholder="Введите название группы">
+          </div>
+        </div> -->
+
+        <!-- Картинка и информация о группе в одной строке -->
+        <!-- <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Картинка и информация</div>
+          <div class="right d-flex" style="gap:16px;"> -->
+            <!-- Картинка -->
+            <!-- <div class="image-upload" style="max-width:250px; flex-shrink: 0;">
+              <input type="file" name="photo" id="photo" class="d-none" accept="image/*">
+              <div id="preview" class="preview-box d-flex align-items-center justify-content-center" 
+                   style="height:140px; border:1px solid #ddd; border-radius:4px;">
+                {% if task.group.photo %}
+                  <img src="{{ task.group.photo.url }}" alt="preview" style="width:100%;height:100%;object-fit:cover;">
+                {% else %}
+                  <span class="text-muted">Нет изображения</span>
+                {% endif %}
+              </div>
+              <div class="mt-2 d-flex" style="gap:8px;">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="pickPhotoBtn">Загрузить</button>
+                <button type="button" class="btn btn-sm btn-outline-danger" id="clearPhotoBtn" 
+                        {% if not task.group.photo %}disabled{% endif %}>Очистить</button>
+              </div>
+            </div> -->
+            
+            <!-- Информация о группе -->
+            <!-- <div class="flex-grow-1">
+              <textarea name="description" id="description" class="form-control h-100" 
+                        style="min-height: 140px; resize: vertical;"
+                        placeholder="Описание группы">{{ task.group.description|default:'' }}</textarea>
+            </div>
+          </div>
+        </div>
+ -->
+        <!-- Подписчиков -->
+        <!-- <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Подписчиков</div>
+          <div class="right">
+            <input type="number" name="subscribers_count" id="subscribers_count" class="form-control" 
+                   value="{{ task.group.subscribers_count|default:0 }}">
+            <small class="text-muted" id="subscribers_date">
+              {% if task.group.subscribers_updated %}
+                данные на {{ task.group.subscribers_updated|date:"d.m.Y" }}
+              {% else %}
+                данные не обновлялись
+              {% endif %}
+            </small>
+          </div>
+        </div> -->
+
+        <!-- Чья группа -->
+        <!-- <div class="form-row mb-3 align-items-center">
+          <div class="left" style="width:220px;">Чья группа</div>
+          <div class="right d-flex align-items-center" style="gap:12px;">
+            <span>Своя</span>
+            <label class="switch switch-green mb-0">
+              <input type="checkbox" name="owner_type" value="own" 
+                     {% if not task or task.owner_type == "own" %}checked{% endif %}>
+              <span class="slider round"></span>
+            </label>
+            <span>Чужая</span>
+            <input type="hidden" name="owner_type_value" 
+                   value="{% if not task or task.owner_type == 'own' %}own{% else %}foreign{% endif %}">
+          </div>
+        </div> -->
+
+        <!-- Страна -->
+        <!-- <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Страна</div>
+          <div class="right">
+            <select name="country" id="country" class="form-control">
+              <option value="">Выберите страну из списка</option>
+              {% for country in countries %}
+                <option value="{{ country.name }}" 
+                        {% if task.group.country and task.group.country.name == country.name %}selected{% endif %}>
+                  {{ country.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div> -->
+
+        <!-- Категория -->
+        <!-- <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Категория</div>
+          <div class="right">
+            <select name="category" id="category" class="form-control">
+              <option value="">Выберите категорию из списка</option>
+              {% for category in categories %}
+                <option value="{{ category.name }}"
+                        {% if task.group.category and task.group.category.name == category.name %}selected{% endif %}>
+                  {{ category.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div> -->
+
+        <!-- Тема выбранной группы -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Тема выбранной группы</div>
+          <div class="right">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <select name="group_theme_id" id="group_theme_id" class="form-control">
+                <option value="">Выберите тему из списка</option>
+                {% for theme in group_themes %}
+                  <option value="{{ theme.id }}" 
+                          {% if task.group_theme_id == theme.id %}selected{% endif %}>
+                    {{ theme.name }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Блок: Текст поста бота -->
+      <div class="section-bar">Текст поста бота</div>
+        <div class="form-rows bordered-box p-3 bg-white rounded mb-4">
+          
+          <div class="dialogs-list" id="task-dialogs-container">
+            <!-- Диалоги будут добавляться здесь динамически -->
+          </div>
+          
+          <!-- Кнопка будет показана только после выбора темы -->
+          <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="addTaskDialogBtn" style="display: none;">
+            <i class="fas fa-plus"></i> Добавить диалог
+          </button>
+
+      </div>
+
+      <!-- Обновленный график публикаций -->
+      <div class="section-bar" style="margin-bottom: 8px;">График публикаций</div>
+      <div class="form-rows bordered-box p-3 bg-white rounded mb-4">
+        
+        <div class="form-row mb-2">
+          <div class="left" style="width:220px;">Дни публикаций</div>
+          <div class="right">
+            <div class="days-header d-flex justify-content-between mb-1" style="max-width: 1000px;">
+              {% for day_num, day_name in week_days %}
+                <div class="text-center" style="width: 120px;">
+                  <div class="day-label" style="font-weight: 500;">{{ day_name }}</div>
+                </div>
+              {% endfor %}
+              <div class="text-center" style="width: 120px;">
+                <div class="day-label" style="font-weight: 500;">Действие</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="left" style="width:220px;">Время публикации</div>
+          <div class="right">
+            <div class="times-container d-flex justify-content-between align-items-center" style="max-width: 1000px;">
+              {% for day_num, day_name in week_days %}
+                <div class="time-slot text-center" style="width: 120px;">
+                  <input type="time" name="schedule_time_{{ day_num }}" 
+                         class="form-control form-control-sm mb-1" 
+                         value="{% if task %}{{ task.schedules|get_time:day_num }}{% else %}13:15{% endif %}">
+                  <input type="hidden" name="schedule_active_{{ day_num }}" 
+                         value="{% if task %}{% if task.schedules|get_active:day_num %}1{% else %}0{% endif %}{% else %}0{% endif %}">
+                  <div class="target-actions d-flex justify-content-center mb-1">
+                    {% if task %}
+                      {% if task.schedules|get_active:day_num %}
+                        <img src="{% static 'admin_panel/img/play.png' %}" class="icon-16 toggle-icon-schedule" 
+                             data-value="1" data-day="{{ day_num }}" title="Активен">
+                        <img src="{% static 'admin_panel/img/pause_gray.png' %}" class="icon-16 toggle-icon-schedule" 
+                             data-value="0" data-day="{{ day_num }}" title="Неактивен">
+                      {% else %}
+                        <img src="{% static 'admin_panel/img/play_gray.png' %}" class="icon-16 toggle-icon-schedule" 
+                             data-value="1" data-day="{{ day_num }}" title="Активен">
+                        <img src="{% static 'admin_panel/img/pause.png' %}" class="icon-16 toggle-icon-schedule" 
+                             data-value="0" data-day="{{ day_num }}" title="Неактивен">
+                      {% endif %}
+                    {% else %}
+                      <img src="{% static 'admin_panel/img/play_gray.png' %}" class="icon-16 toggle-icon-schedule" 
+                           data-value="1" data-day="{{ day_num }}" title="Активен">
+                      <img src="{% static 'admin_panel/img/pause.png' %}" class="icon-16 toggle-icon-schedule" 
+                           data-value="0" data-day="{{ day_num }}" title="Неактивен">
+                    {% endif %}
+                  </div>
+                </div>
+              {% endfor %}
+              <!-- Кнопка "Запуск сейчас" -->
+              <div class="time-slot text-center" style="width: 120px;">
+                  <button type="button" class="btn btn-warning btn-sm" id="run-now-btn">
+                      Запуск сейчас
+                  </button>
+              </div>
+              <input type="hidden" name="run_now" value="0" id="run_now_input">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- === БЛОК: Бот также подписан в других группах по стране === -->
+      <div class="section-bar">Бот также подписан в других группах по стране ({{ other_groups_count }} групп)</div>
+      <div class="form-rows bordered-box p-3 bg-white rounded mb-4">
+        
+        <div class="form-row">
+          <div class="left" style="width:220px;">Подписчик в группах</div>
+          <div class="right">
+            <button type="button" class="btn btn-outline-primary btn-sm mb-3" id="refreshGroupsBtn">
+              Обновить список
+            </button>
+            
+            <div class="channels-grid">
+              {% for group_task in other_groups %}
+                <div class="channel-item d-flex align-items-center justify-content-between p-2 border rounded mb-2">
+                  <span class="channel-name">{{ group_task.group.name }}</span>
+                </div>
+              {% empty %}
+                <div class="text-muted small">Нет других групп в этой стране</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </form>
+
+  </div>
+</section>
+
+<style>
+.section-bar{
+  background:#e9ecef;
+  color:#2e3a46;
+  font-weight:600;
+  padding:8px 12px;
+  margin:14px 0 6px;
+  border-radius:4px;
+  border:1px solid #dee2e6;
+}
+.form-rows{
+  border:1px solid #e9ecef;
+  border-radius:6px;
+  background:#fff;
+}
+.form-row{
+  display:flex;
+  align-items:center;
+  padding:10px 12px;
+  border-top:1px solid #f2f4f6;
+}
+.form-row:first-child{border-top:0;}
+.form-row .left{ 
+  font-weight:600;
+  color:#495057;
+  min-width:220px;
+}
+.form-row .right{ 
+  flex:1;
+}
+.icon-16{
+  width:16px;
+  height:16px;
+  cursor:pointer;
+  opacity:.9;
+}
+.icon-16:hover{opacity:1;}
+
+/* Стили для свитча */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+}
+input:checked + .slider {
+  background-color: #28a745;
+}
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+.slider.round {
+  border-radius: 24px;
+}
+.slider.round:before {
+  border-radius: 50%;
+}
+.switch-blue input:checked + .slider { background-color: #007bff; }
+.switch-green input:checked + .slider { background-color: #28a745; }
+
+/* Стили для каналов */
+.channels-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+.channel-item {
+  background: #f8f9fa;
+  min-height: 40px;
+}
+.channel-item:hover {
+  background: #e9ecef;
+}
+.channel-name {
+  font-size: 0.9em;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Стили для дней недели в графике */
+.day-label {
+  text-align: center;
+  font-weight: 500;
+}
+
+/* Стили для кружочков (как в channel_sync) */
+.circle-day { cursor: pointer; }
+.circle-day input[type="radio"] { display: none; }
+.circle-day .dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #adb5bd;
+  position: relative;
+  transition: all 0.3s;
+}
+.circle-day input[type="radio"]:checked + .dot {
+  border-color: #007bff;
+}
+.circle-day input[type="radio"]:checked + .dot::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #007bff;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.day-label { margin-left: 8px; }
+
+/* Убрать стрелочки у числового поля */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+/* Стили для диалогов */
+.dialog-row {
+  background: #f8f9fa;
+  transition: background-color 0.2s;
+  margin-bottom: 4px !important;
+}
+.dialog-row:hover {
+  background: #e9ecef;
+}
+.dialog-textarea {
+  min-height: 38px !important;
+  height: 38px;
+  max-height: 80px;
+  resize: vertical;
+  width: 60% !important;
+  flex: 0 0 60% !important;
+  margin-bottom: 0 !important;
+}
+.target-actions {
+  display: flex;
+  gap: 8px; /* Увеличиваем расстояние между иконками */
+}
+
+.toggle-icon-schedule, .toggle-icon-dialog {
+  margin: 0 2px; /* Добавляем небольшие отступы по бокам */
+}
+select:disabled {
+  background-color: #e9ecef;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+</style>
+<style>
+/* ... существующие стили ... */
+</style>
+
+<script>
+// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И ФУНКЦИИ
+const baseImg = "{% static 'admin_panel/img/' %}";
+const PARSER_URL = (window.API && window.API.PARSER) || "/api/parse_channel";
+const entitiesData = {{ entities_json|safe }};
+const allThemesDialogs = {{ all_themes_dialogs_json|safe }};
+const taskDialogsActivity = {{ task_dialogs_activity_json|safe }};
+let newDialogCounter = 0;
+
+// УТИЛИТАРНЫЕ ФУНКЦИИ
+function setSelectByText(selectId, text) {
+    const select = document.getElementById(selectId);
+    if (!select || !text) return false;
+    
+    for (let option of select.options) {
+        if (option.text === text || option.value === text) {
+            option.selected = true;
+            return true;
+        }
+    }
+    return false;
+}
+
+function showPreview(src) {
+    const previewBox = document.getElementById('preview');
+    const clearBtn = document.getElementById('clearPhotoBtn');
+    if (previewBox) {
+        previewBox.innerHTML = `<img src="${src}" alt="preview" style="width:100%;height:100%;object-fit:cover;">`;
+    }
+    if (clearBtn) clearBtn.disabled = false;
+}
+
+function clearPreview() {
+    const photoInput = document.getElementById('photo');
+    const previewBox = document.getElementById('preview');
+    const clearBtn = document.getElementById('clearPhotoBtn');
+    
+    if (photoInput) photoInput.value = '';
+    if (previewBox) previewBox.innerHTML = `<span class="text-muted">Нет изображения</span>`;
+    if (clearBtn) clearBtn.disabled = true;
+}
+
+function updateFieldRequirements() {
+    const targetGroupSelect = document.getElementById('target_group_id');
+    const telegramInput = document.getElementById('telegram_id');
+    const nameInput = document.getElementById('name');
+    const linkInput = document.getElementById('link');
+    const descriptionInput = document.getElementById('description');
+    
+    if (!targetGroupSelect) return;
+    
+    const isExistingGroup = targetGroupSelect.value !== '';
+    
+    if (isExistingGroup) {
+        // Если выбрана существующая группа - поля не обязательны и не редактируемы
+        if (telegramInput) {
+            telegramInput.removeAttribute('required');
+            telegramInput.disabled = true;
+        }
+        if (nameInput) {
+            nameInput.removeAttribute('required');
+            nameInput.disabled = true;
+        }
+        if (linkInput) linkInput.disabled = true;
+        if (descriptionInput) descriptionInput.disabled = true;
+        
+        // Делаем поля "Страна" и "Категория" нередактируемыми
+        const countrySelect = document.getElementById('country');
+        const categorySelect = document.getElementById('category');
+        if (countrySelect) countrySelect.disabled = true;
+        if (categorySelect) categorySelect.disabled = true;
+        
+    } else {
+        // Если создается новая группа - поля обязательны и редактируемы
+        if (telegramInput) {
+            telegramInput.setAttribute('required', 'required');
+            telegramInput.disabled = false;
+        }
+        if (nameInput) {
+            nameInput.setAttribute('required', 'required');
+            nameInput.disabled = false;
+        }
+        if (linkInput) linkInput.disabled = false;
+        if (descriptionInput) descriptionInput.disabled = false;
+        
+        // Делаем поля "Страна" и "Категория" редактируемыми
+        const countrySelect = document.getElementById('country');
+        const categorySelect = document.getElementById('category');
+        if (countrySelect) countrySelect.disabled = false;
+        if (categorySelect) categorySelect.disabled = false;
+    }
+}
+
+function addTaskDialogHandlers(dialogElement) {
+    const dialogId = dialogElement.dataset.tempId || dialogElement.dataset.dialogId;
+    
+    // Обработчики переключения активности
+    dialogElement.querySelectorAll('.toggle-task-dialog, .toggle-icon-dialog').forEach(icon => {
+        icon.addEventListener('click', function() {
+            const dialogId = this.dataset.id;
+            const activeNow = this.dataset.value === "1";
+            
+            // Находим соответствующий hidden input
+            let hiddenInput;
+            if (dialogId && dialogId.startsWith('new_')) {
+                hiddenInput = document.querySelector(`input[name="task_dialog_new_active_${dialogId}"]`);
+            } else if (dialogId) {
+                hiddenInput = document.querySelector(`input[name="task_dialog_active_${dialogId}"]`);
+            }
+            
+            if (hiddenInput) {
+                hiddenInput.value = activeNow ? "1" : "0";
+                const container = this.closest('.target-actions');
+                const play = container.querySelector('.toggle-icon-dialog[data-value="1"], .toggle-task-dialog[data-value="1"]');
+                const pause = container.querySelector('.toggle-icon-dialog[data-value="0"], .toggle-task-dialog[data-value="0"]');
+
+                if (activeNow) {
+                    if (play) play.src = baseImg + "play.png";
+                    if (pause) pause.src = baseImg + "pause_gray.png";
+                } else {
+                    if (play) play.src = baseImg + "play_gray.png";
+                    if (pause) pause.src = baseImg + "pause.png";
+                }
+            }
+        });
+    });
+    
+    // ИСПРАВЛЕННЫЙ обработчик удаления диалога
+    const deleteBtn = dialogElement.querySelector('.delete-task-dialog');
+    if (deleteBtn) {
+        // Удаляем старые обработчики (если есть)
+        deleteBtn.replaceWith(deleteBtn.cloneNode(true));
+        const newDeleteBtn = dialogElement.querySelector('.delete-task-dialog');
+        
+        newDeleteBtn.addEventListener('click', function(e) {
+            e.stopPropagation(); // Останавливаем всплытие события
+            
+            // Проверяем, не был ли уже удален диалог
+            if (dialogElement.style.opacity === '0.5') {
+                return;
+            }
+            
+            // Проверяем, не вызван ли confirm другим обработчиком
+            if (window.dialogDeletionInProgress) {
+                return;
+            }
+            
+            window.dialogDeletionInProgress = true;
+            
+            if (confirm('Удалить этот диалог?')) {
+                const dialogId = this.dataset.id;
+                
+                // Для новых диалогов - просто удаляем из DOM
+                if (dialogId && dialogId.startsWith('new_')) {
+                    dialogElement.remove();
+                } else {
+                    // Для существующих диалогов - помечаем как удаленный
+                    const existingDialogId = dialogElement.dataset.dialogId;
+                    if (existingDialogId) {
+                        // Проверяем, не создано ли уже поле для удаления
+                        const existingDeleteInput = document.querySelector(`input[name="dialog_delete_${existingDialogId}"]`);
+                        if (!existingDeleteInput) {
+                            // Создаем скрытое поле для пометки удаления
+                            const deleteInput = document.createElement('input');
+                            deleteInput.type = 'hidden';
+                            deleteInput.name = `dialog_delete_${existingDialogId}`;
+                            deleteInput.value = '1';
+                            document.getElementById('main-form').appendChild(deleteInput);
+                        }
+                    }
+                    
+                    // Удаляем из DOM с анимацией
+                    dialogElement.style.opacity = '0.5';
+                    dialogElement.style.pointerEvents = 'none';
+                    setTimeout(() => {
+                        dialogElement.remove();
+                    }, 300);
+                }
+            }
+            
+            // Сбрасываем флаг через небольшой таймаут
+            setTimeout(() => {
+                window.dialogDeletionInProgress = false;
+            }, 100);
+        });
+    }
+}
+
+
+function addNewTaskDialog() {
+    const themeSelect = document.getElementById('group_theme_id');
+    const taskDialogsContainer = document.getElementById('task-dialogs-container');
+    
+    if (!themeSelect || !themeSelect.value) {
+        alert('Сначала выберите тему');
+        return;
+    }
+    
+    newDialogCounter++;
+    const tempDialogId = `new_${newDialogCounter}`;
+    
+    const newDialog = document.createElement('div');
+    newDialog.className = 'dialog-row d-flex align-items-center gap-2 mb-1 p-2 border rounded';
+    newDialog.dataset.tempId = tempDialogId;
+    
+    // ИСПРАВЛЕННЫЙ HTML - используем такие же классы как у существующих диалогов
+    newDialog.innerHTML = `
+        <textarea name="task_dialog_new_${tempDialogId}" 
+                class="form-control dialog-textarea flex-grow-1" rows="1"
+                placeholder="Введите текст сообщения"></textarea>
+        <input type="hidden" name="task_dialog_new_active_${tempDialogId}" value="1">
+        <div class="d-flex align-items-center" style="gap:8px;">
+            <div class="target-actions text-nowrap">
+                <img src="${baseImg}play.png" class="icon-16 toggle-icon-dialog" 
+                    data-value="1" data-id="${tempDialogId}" title="Активен">
+                <img src="${baseImg}pause_gray.png" class="icon-16 toggle-icon-dialog" 
+                    data-value="0" data-id="${tempDialogId}" title="Неактивен">
+            </div>
+            <button type="button" class="btn btn-link p-0 m-0 delete-task-dialog" 
+                    data-id="${tempDialogId}" title="Удалить диалог">
+                <img src="${baseImg}delete.png" alt="Удалить" class="icon-16">
+            </button>
+        </div>
+    `;
+    
+    if (taskDialogsContainer) {
+        taskDialogsContainer.appendChild(newDialog);
+    }
+    
+    // Добавляем обработчики
+    addTaskDialogHandlers(newDialog);
+    
+    // Фокус на новое поле ввода
+    setTimeout(() => {
+        const textarea = newDialog.querySelector('textarea');
+        if (textarea) textarea.focus();
+    }, 100);
+}
+
+function addTaskDialogRow(dialogId, message = '', isActiveInTask = true) {
+    const taskDialogsContainer = document.getElementById('task-dialogs-container');
+    if (!taskDialogsContainer) return;
+    
+    const newDialog = document.createElement('div');
+    newDialog.className = 'dialog-row d-flex align-items-center gap-2 mb-1 p-2 border rounded';
+    newDialog.dataset.dialogId = dialogId;
+    
+    newDialog.innerHTML = `
+        <textarea name="task_dialog_message_${dialogId}" 
+                class="form-control dialog-textarea flex-grow-1" rows="1"
+                placeholder="Введите текст сообщения" readonly>${message}</textarea>
+        <input type="hidden" name="task_dialog_active_${dialogId}" value="${isActiveInTask ? '1' : '0'}">
+        <div class="d-flex align-items-center" style="gap:8px;">
+            <div class="target-actions text-nowrap">
+                <img src="${baseImg}${isActiveInTask ? 'play.png' : 'play_gray.png'}" class="icon-16 toggle-icon-dialog" 
+                    data-value="1" data-id="${dialogId}" title="Активен">
+                <img src="${baseImg}${isActiveInTask ? 'pause_gray.png' : 'pause.png'}" class="icon-16 toggle-icon-dialog" 
+                    data-value="0" data-id="${dialogId}" title="Неактивен">
+            </div>
+            <button type="button" class="btn btn-link p-0 m-0 delete-task-dialog" 
+                    data-id="${dialogId}" title="Удалить диалог">
+                <img src="${baseImg}delete.png" alt="Удалить" class="icon-16">
+            </button>
+        </div>
+    `;
+    taskDialogsContainer.appendChild(newDialog);
+    
+    // Добавляем обработчики
+    addTaskDialogHandlers(newDialog);
+}
+
+function loadThemeDialogs(themeId) {
+    const taskDialogsContainer = document.getElementById('task-dialogs-container');
+    const addTaskDialogBtn = document.getElementById('addTaskDialogBtn');
+    
+    if (!taskDialogsContainer) return;
+    
+    if (!themeId) {
+        taskDialogsContainer.innerHTML = '<div class="text-muted text-center p-2">Выберите тему для загрузки диалогов</div>';
+        if (addTaskDialogBtn) addTaskDialogBtn.style.display = 'none';
+        return;
+    }
+    
+    console.log('Loading dialogs for theme:', themeId);
+    console.log('Available themes dialogs:', allThemesDialogs);
+    
+    // Находим диалоги для выбранной темы
+    const themeDialogs = allThemesDialogs[themeId] || [];
+    
+    console.log('Found dialogs:', themeDialogs);
+    
+    if (themeDialogs.length > 0) {
+        taskDialogsContainer.innerHTML = '';
+        themeDialogs.forEach(dialog => {
+            // Используем сохраненную активность для задачи или по умолчанию true
+            const isActiveInTask = taskDialogsActivity[dialog.id] !== undefined ? 
+                                taskDialogsActivity[dialog.id] : true;
+            
+            addTaskDialogRow(dialog.id, dialog.message, isActiveInTask);
+        });
+    } else {
+        taskDialogsContainer.innerHTML = '<div class="text-muted text-center p-2">В этой теме нет диалогов</div>';
+    }
+    
+    // Показываем кнопку добавления диалога
+    if (addTaskDialogBtn) addTaskDialogBtn.style.display = 'inline-block';
+}
+
+function applyGroupFilter() {
+    const groupOwnerFilter = document.getElementById('group-owner-filter');
+    const targetGroupSelect = document.getElementById('target_group_id');
+    
+    if (!groupOwnerFilter || !targetGroupSelect) return;
+    
+    const showOwn = groupOwnerFilter.checked;
+    const options = targetGroupSelect.querySelectorAll('option[data-owner]');
+    
+    let hasVisibleOptions = false;
+    
+    options.forEach(option => {
+        if (option.value) {
+            const isOwn = option.dataset.owner === 'own';
+            if (isOwn === showOwn) {
+                option.style.display = '';
+                hasVisibleOptions = true;
+            } else {
+                option.style.display = 'none';
+            }
+        }
+    });
+    
+    // Если текущий выбранный элемент скрыт, выбираем первый доступный
+    const selectedOption = targetGroupSelect.options[targetGroupSelect.selectedIndex];
+    if (selectedOption && selectedOption.style.display === 'none') {
+        // Находим первую доступную опцию
+        for (let i = 0; i < targetGroupSelect.options.length; i++) {
+            const option = targetGroupSelect.options[i];
+            if (option.value && option.style.display !== 'none') {
+                targetGroupSelect.selectedIndex = i;
+                targetGroupSelect.dispatchEvent(new Event('change'));
+                break;
+            }
+        }
+    }
+    
+    // Если нет видимых опций, показываем сообщение
+    if (!hasVisibleOptions) {
+        const noOptionsMsg = document.getElementById('no-options-message');
+        if (!noOptionsMsg) {
+            const msg = document.createElement('div');
+            msg.id = 'no-options-message';
+            msg.className = 'text-muted small mt-2';
+            msg.textContent = 'Нет групп в выбранном фильтре';
+            targetGroupSelect.parentNode.appendChild(msg);
+        }
+    } else {
+        const noOptionsMsg = document.getElementById('no-options-message');
+        if (noOptionsMsg) noOptionsMsg.remove();
+    }
+}
+
+// ОСНОВНОЙ КОД ИНИЦИАЛИЗАЦИИ
+document.addEventListener("DOMContentLoaded", () => {
+    // === ИНИЦИАЛИЗАЦИЯ УПРАВЛЕНИЯ ИЗОБРАЖЕНИЯМИ ===
+    const photoInput = document.getElementById('photo');
+    const previewBox = document.getElementById('preview');
+    const pickBtn = document.getElementById('pickPhotoBtn');
+    const clearBtn = document.getElementById('clearPhotoBtn');
+
+    if (photoInput) {
+        photoInput.addEventListener('change', e => {
+            const f = e.target.files && e.target.files[0];
+            if (!f) return clearPreview();
+            const r = new FileReader();
+            r.onload = ev => showPreview(ev.target.result);
+            r.readAsDataURL(f);
+        });
+    }
+    
+    if (pickBtn) pickBtn.addEventListener('click', () => photoInput && photoInput.click());
+    if (clearBtn) clearBtn.addEventListener('click', clearPreview);
+    if (previewBox) previewBox.addEventListener('click', () => photoInput && photoInput.click());
+
+    // === ИНИЦИАЛИЗАЦИЯ ТУМБЛЕРОВ ===
+    const toggle = document.getElementById("toggle-active");
+    const hidden = document.getElementById("is_active");
+    if (toggle && hidden) {
+        toggle.addEventListener("change", () => {
+            hidden.value = toggle.checked ? "1" : "0";
+        });
+    }
+
+    // Обработка свитча "Чья группа"
+    const ownerSwitch = document.querySelector('input[name="owner_type"]');
+    const ownerHidden = document.querySelector('input[name="owner_type_value"]');
+    if (ownerSwitch && ownerHidden) {
+        ownerSwitch.addEventListener("change", function() {
+            ownerHidden.value = this.checked ? "own" : "foreign";
+        });
+    }
+
+    // Управление расписанием
+    document.querySelectorAll(".toggle-icon-schedule").forEach(icon => {
+        icon.addEventListener("click", function() {
+            const dayNum = this.dataset.day;
+            const hiddenInput = document.querySelector(`input[name="schedule_active_${dayNum}"]`);
+            if (!hiddenInput) return;
+
+            const newValue = this.dataset.value;
+            hiddenInput.value = newValue;
+
+            const container = this.closest('.time-slot');
+            const playIcon = container.querySelector('.toggle-icon-schedule[data-value="1"]');
+            const pauseIcon = container.querySelector('.toggle-icon-schedule[data-value="0"]');
+
+            if (newValue === "1") {
+                playIcon.src = baseImg + "play.png";
+                pauseIcon.src = baseImg + "pause_gray.png";
+            } else {
+                playIcon.src = baseImg + "play_gray.png";
+                pauseIcon.src = baseImg + "pause.png";
+            }
+        });
+    });
+
+    // === ИНИЦИАЛИЗАЦИЯ ВЫБОРА ГРУППЫ ===
+    const targetGroupSelect = document.getElementById('target_group_id');
+    if (targetGroupSelect) {
+        targetGroupSelect.addEventListener('change', function() {
+            const groupId = this.value;
+            const linkInput = document.getElementById('link');
+            const telegramInput = document.getElementById('telegram_id');
+            const nameInput = document.getElementById('name');
+            const descriptionInput = document.getElementById('description');
+            const pickBtn = document.getElementById('pickPhotoBtn');
+            const clearBtn = document.getElementById('clearPhotoBtn');
+            
+            if (groupId) {
+                // Находим выбранную группу в данных
+                const selectedEntity = entitiesData.find(entity => entity.id == groupId);
+                
+                if (selectedEntity) {
+                    // Заполняем поля данными из выбранной группы
+                    if (linkInput) linkInput.value = selectedEntity.link || "";
+                    if (telegramInput) telegramInput.value = selectedEntity.telegram_id || "";
+                    if (nameInput) nameInput.value = selectedEntity.name || "";
+                    if (descriptionInput) descriptionInput.value = selectedEntity.description || "";
+                    
+                    // Устанавливаем страну и категорию
+                    if (selectedEntity.country) {
+                        setSelectByText("country", selectedEntity.country);
+                    }
+                    if (selectedEntity.category) {
+                        setSelectByText("category", selectedEntity.category);
+                    }
+                    
+                    // Показываем изображение если есть
+                    if (selectedEntity.photo_url) {
+                        showPreview(selectedEntity.photo_url);
+                    } else {
+                        clearPreview();
+                    }
+
+                    // Блокируем редактирование полей
+                    if (linkInput) {
+                        linkInput.readOnly = true;
+                        linkInput.style.backgroundColor = '#e9ecef';
+                    }
+                    if (telegramInput) {
+                        telegramInput.readOnly = true;
+                        telegramInput.disabled = true;
+                        telegramInput.style.backgroundColor = '#e9ecef';
+                    }
+                    if (nameInput) {
+                        nameInput.readOnly = true;
+                        nameInput.disabled = true;
+                        nameInput.style.backgroundColor = '#e9ecef';
+                    }
+                    if (descriptionInput) {
+                        descriptionInput.readOnly = true;
+                        descriptionInput.disabled = true;
+                        descriptionInput.style.backgroundColor = '#e9ecef';
+                    }
+                    if (pickBtn) {
+                        pickBtn.disabled = true;
+                        pickBtn.style.opacity = '0.5';
+                        pickBtn.style.cursor = 'not-allowed';
+                    }
+                    
+                    // Блокируем выбор страны и категории
+                    const countrySelect = document.getElementById('country');
+                    const categorySelect = document.getElementById('category');
+                    if (countrySelect) {
+                        countrySelect.disabled = true;
+                        countrySelect.style.backgroundColor = '#e9ecef';
+                        countrySelect.style.cursor = 'not-allowed';
+                    }
+                    if (categorySelect) {
+                        categorySelect.disabled = true;
+                        categorySelect.style.backgroundColor = '#e9ecef';
+                        categorySelect.style.cursor = 'not-allowed';
+                    }
+                    
+                    // Блокируем кнопку очистки фото
+                    if (clearBtn) {
+                        clearBtn.disabled = true;
+                        clearBtn.style.opacity = '0.5';
+                        clearBtn.style.cursor = 'not-allowed';
+                    }
+                }
+            } else {
+                // Если выбрано "Создать новую группу", очищаем и разблокируем поля
+                if (linkInput) {
+                    linkInput.value = "";
+                    linkInput.readOnly = false;
+                    linkInput.style.backgroundColor = '';
+                }
+                if (telegramInput) {
+                    telegramInput.value = "";
+                    telegramInput.readOnly = false;
+                    telegramInput.disabled = false;
+                    telegramInput.style.backgroundColor = '';
+                }
+                if (nameInput) {
+                    nameInput.value = "";
+                    nameInput.readOnly = false;
+                    nameInput.disabled = false;
+                    nameInput.style.backgroundColor = '';
+                }
+                if (descriptionInput) {
+                    descriptionInput.value = "";
+                    descriptionInput.readOnly = false;
+                    descriptionInput.disabled = false;
+                    descriptionInput.style.backgroundColor = '';
+                }
+                
+                const countrySelect = document.getElementById("country");
+                const categorySelect = document.getElementById("category");
+                if (countrySelect) {
+                    countrySelect.selectedIndex = 0;
+                    countrySelect.disabled = false;
+                    countrySelect.style.backgroundColor = '';
+                    countrySelect.style.cursor = '';
+                }
+                if (categorySelect) {
+                    categorySelect.selectedIndex = 0;
+                    categorySelect.disabled = false;
+                    categorySelect.style.backgroundColor = '';
+                    categorySelect.style.cursor = '';
+                }
+                
+                clearPreview();
+                
+                // Разблокируем поля для редактирования
+                if (pickBtn) {
+                    pickBtn.disabled = false;
+                    pickBtn.style.opacity = '';
+                    pickBtn.style.cursor = '';
+                }
+                if (clearBtn) {
+                    clearBtn.disabled = false;
+                    clearBtn.style.opacity = '';
+                    clearBtn.style.cursor = '';
+                }
+            }
+            
+            updateFieldRequirements();
+        });
+
+        // Автоматически заполняем поля при загрузке страницы
+        if (targetGroupSelect.value) {
+            targetGroupSelect.dispatchEvent(new Event('change'));
+        } else if ({% if task %}true{% else %}false{% endif %}) {
+            // Если задача существует, но группа не выбрана в селекте
+            const taskGroupId = {% if task %}{{ task.group.id }}{% else %}null{% endif %};
+            if (taskGroupId) {
+                const selectedEntity = entitiesData.find(entity => entity.id == taskGroupId);
+                if (selectedEntity) {
+                    const linkInput = document.getElementById('link');
+                    const telegramInput = document.getElementById('telegram_id');
+                    const nameInput = document.getElementById('name');
+                    const descriptionInput = document.getElementById('description');
+                    const pickBtn = document.getElementById('pickPhotoBtn');
+                    const clearBtn = document.getElementById('clearPhotoBtn');
+                    
+                    if (linkInput) {
+                        linkInput.value = selectedEntity.link || "";
+                        linkInput.readOnly = true;
+                        linkInput.style.backgroundColor = '#e9ecef';
+                    }
+                    if (telegramInput) {
+                        telegramInput.value = selectedEntity.telegram_id || "";
+                        telegramInput.readOnly = true;
+                        telegramInput.disabled = true;
+                        telegramInput.style.backgroundColor = '#e9ecef';
+                    }
+                    if (nameInput) {
+                        nameInput.value = selectedEntity.name || "";
+                        nameInput.readOnly = true;
+                        nameInput.disabled = true;
+                        nameInput.style.backgroundColor = '#e9ecef';
+                    }
+                    if (descriptionInput) {
+                        descriptionInput.value = selectedEntity.description || "";
+                        descriptionInput.readOnly = true;
+                        descriptionInput.disabled = true;
+                        descriptionInput.style.backgroundColor = '#e9ecef';
+                    }
+                    
+                    if (selectedEntity.country) {
+                        setSelectByText("country", selectedEntity.country);
+                    }
+                    if (selectedEntity.category) {
+                        setSelectByText("category", selectedEntity.category);
+                    }
+                    
+                    if (selectedEntity.photo_url) {
+                        showPreview(selectedEntity.photo_url);
+                    }
+                    
+                    // Блокируем поля для редактирования
+                    const countrySelect = document.getElementById('country');
+                    const categorySelect = document.getElementById('category');
+                    if (countrySelect) {
+                        countrySelect.disabled = true;
+                        countrySelect.style.backgroundColor = '#e9ecef';
+                        countrySelect.style.cursor = 'not-allowed';
+                    }
+                    if (categorySelect) {
+                        categorySelect.disabled = true;
+                        categorySelect.style.backgroundColor = '#e9ecef';
+                        categorySelect.style.cursor = 'not-allowed';
+                    }
+                    
+                    if (pickBtn) {
+                        pickBtn.disabled = true;
+                        pickBtn.style.opacity = '0.5';
+                        pickBtn.style.cursor = 'not-allowed';
+                    }
+                    if (clearBtn) {
+                        clearBtn.disabled = true;
+                        clearBtn.style.opacity = '0.5';
+                        clearBtn.style.cursor = 'not-allowed';
+                    }
+                }
+            }
+        }
+    }
+
+    // === ИНИЦИАЛИЗАЦИЯ РАБОТЫ СО ССЫЛКАМИ ===
+    const searchBtn = document.getElementById('searchBtn');
+    const openLinkBtn = document.getElementById('openLinkBtn');
+    const openGroupBtn = document.getElementById('openGroupBtn');
+
+    // Кнопка "Поиск" - автозаполнение
+    if (searchBtn) {
+        searchBtn.addEventListener('click', async () => {
+            const linkInput = document.getElementById('link');
+            if (!linkInput) return;
+            
+            const link = linkInput.value.trim();
+            if (!link) return alert("Введите ссылку для поиска");
+
+            try {
+                const resp = await fetch(PARSER_URL, {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ link })
+                });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data.detail || data.error || "Ошибка API");
+
+                const telegramInput = document.getElementById('telegram_id');
+                const nameInput = document.getElementById('name');
+                const descriptionInput = document.getElementById('description');
+                const pickBtn = document.getElementById('pickPhotoBtn');
+                const clearBtn = document.getElementById('clearPhotoBtn');
+                const previewBox = document.getElementById('preview');
+                const photoInput = document.getElementById('photo');
+
+                if (telegramInput) telegramInput.value = data.telegram_id ?? data.tg_id ?? "";
+                if (nameInput) nameInput.value = data.name || "";
+                if (descriptionInput && data.description) {
+                    descriptionInput.value = data.description;
+                }
+                if (data.country) setSelectByText("country", data.country);
+                if (data.category) setSelectByText("category", data.category);
+
+                // Блокируем поля после автозаполнения
+                if (linkInput) linkInput.readOnly = true;
+                if (telegramInput) telegramInput.readOnly = true;
+                if (descriptionInput) descriptionInput.readOnly = true;
+                if (nameInput) nameInput.readOnly = true;
+                if (pickBtn) pickBtn.disabled = true;
+
+                if (data.photo) {
+                    const photoUrl = data.photo;
+                    showPreview(photoUrl);
+
+                    try {
+                        const imgResp = await fetch(photoUrl);
+                        if (imgResp.ok) {
+                            const rawCT = (imgResp.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+                            if (rawCT.startsWith("image/")) {
+                                const buf = await imgResp.arrayBuffer();
+                                const ext = (rawCT.split("/")[1] || "jpg").replace(/[^a-z0-9]/gi, "");
+                                const file = new File([buf], `autofill.${ext}`, { type: rawCT });
+                                const dt = new DataTransfer();
+                                dt.items.add(file);
+                                if (photoInput) photoInput.files = dt.files;
+
+                                // Блокируем управление фото
+                                if (pickBtn) pickBtn.style.display = "none";
+                                if (clearBtn) clearBtn.style.display = "none";
+                                if (previewBox) {
+                                    previewBox.style.cursor = "default";
+                                    previewBox.onclick = null;
+                                }
+                            }
+                        }
+                    } catch (err) {
+                        console.warn("Ошибка загрузки фото:", err);
+                    }
+                } else {
+                    clearPreview();
+                }
+
+            } catch (e) {
+                alert("Автозаполнение не удалось: " + e.message);
+            }
+        });
+    }
+
+    // Кнопка с иконкой - открытие ссылки
+    if (openLinkBtn) {
+        openLinkBtn.addEventListener('click', () => {
+            const linkInput = document.getElementById('link');
+            if (!linkInput) return;
+            
+            const link = linkInput.value.trim();
+            if (link) {
+                let url = link;
+                if (!url.startsWith('http')) {
+                    url = 'https://t.me/' + link.replace('@', '');
+                }
+                window.open(url, '_blank');
+            } else {
+                alert('Введите ссылку для открытия');
+            }
+        });
+    }
+
+    // Кнопка открытия выбранной группы
+    if (openGroupBtn) {
+        openGroupBtn.addEventListener('click', () => {
+            const targetGroupSelect = document.getElementById('target_group_id');
+            if (!targetGroupSelect) return;
+            
+            if (targetGroupSelect.value) {
+                const selectedEntity = entitiesData.find(entity => entity.id == targetGroupSelect.value);
+                if (selectedEntity && selectedEntity.link) {
+                    let url = selectedEntity.link;
+                    if (!url.startsWith('http')) {
+                        url = 'https://t.me/' + url.replace('@', '');
+                    }
+                    window.open(url, '_blank');
+                } else {
+                    alert('У выбранной группы нет ссылки');
+                }
+            } else {
+                alert('Сначала выберите группу');
+            }
+        });
+    }
+
+    // Кнопка "Обновить" для Telegram ID
+    const refreshTelegramBtn = document.getElementById('refreshTelegramBtn');
+    if (refreshTelegramBtn) {
+        refreshTelegramBtn.addEventListener('click', function() {
+            const searchBtn = document.getElementById('searchBtn');
+            if (searchBtn) searchBtn.click();
+        });
+    }
+
+    // === ИНИЦИАЛИЗАЦИЯ ФИЛЬТРА ГРУПП ===
+    const groupOwnerFilter = document.getElementById('group-owner-filter');
+    if (groupOwnerFilter && targetGroupSelect) {
+        groupOwnerFilter.addEventListener('change', applyGroupFilter);
+        
+        // Автоматически устанавливаем правильный фильтр при загрузке
+        function setInitialFilter() {
+            if (targetGroupSelect.value) {
+                // Находим выбранную группу и определяем её тип
+                const selectedOption = targetGroupSelect.options[targetGroupSelect.selectedIndex];
+                if (selectedOption && selectedOption.dataset.owner) {
+                    const isOwn = selectedOption.dataset.owner === 'own';
+                    groupOwnerFilter.checked = isOwn;
+                }
+            } else if ({% if task and task.group %}true{% else %}false{% endif %}) {
+                // Если группа привязана к задаче, но не выбрана в селекте
+                const taskGroupId = {% if task %}{{ task.group.id }}{% else %}null{% endif %};
+                if (taskGroupId) {
+                    const selectedEntity = entitiesData.find(entity => entity.id == taskGroupId);
+                    if (selectedEntity) {
+                        const isOwn = selectedEntity.owner === 'own';
+                        groupOwnerFilter.checked = isOwn;
+                    }
+                }
+            }
+            
+            // Применяем фильтр
+            applyGroupFilter();
+        }
+        
+        // Инициализируем фильтр при загрузке
+        setInitialFilter();
+    }
+
+    // === ИНИЦИАЛИЗАЦИЯ УПРАВЛЕНИЯ ДИАЛОГАМИ ===
+    const addTaskDialogBtn = document.getElementById('addTaskDialogBtn');
+    if (addTaskDialogBtn) {
+        addTaskDialogBtn.addEventListener('click', addNewTaskDialog);
+    }
+
+    const themeSelect = document.getElementById('group_theme_id');
+    if (themeSelect) {
+        themeSelect.addEventListener('change', function() {
+            const themeId = this.value;
+            console.log('Theme changed to:', themeId);
+            loadThemeDialogs(themeId);
+        });
+    }
+
+    // Инициализация диалогов при загрузке
+    function initializeDialogs() {
+        // Загружаем диалоги текущей темы (если есть)
+        const themeSelect = document.getElementById('group_theme_id');
+        const currentThemeId = themeSelect ? themeSelect.value : null;
+        loadThemeDialogs(currentThemeId);
+        
+        // Добавляем обработчики для существующих диалогов
+        document.querySelectorAll('.dialog-row').forEach(dialog => {
+            addTaskDialogHandlers(dialog);
+        });
+    }
+    
+    // Запускаем инициализацию диалогов
+    initializeDialogs();
+
+    // === ИНИЦИАЛИЗАЦИЯ ОБНОВЛЕНИЯ СПИСКА ГРУПП ===
+    const refreshGroupsBtn = document.getElementById("refreshGroupsBtn");
+    if (refreshGroupsBtn) {
+        refreshGroupsBtn.addEventListener("click", async function() {
+            const botId = document.querySelector('select[name="bot_id"]').value;
+            const countrySelect = document.getElementById('country');
+            const country = countrySelect ? countrySelect.value : '';
+            
+            if (!botId) {
+                alert('Выберите бота для обновления списка групп');
+                return;
+            }
+            
+            if (!country) {
+                alert('Укажите страну для фильтрации групп');
+                return;
+            }
+            
+            this.disabled = true;
+            const originalText = this.textContent;
+            this.textContent = "Обновление...";
+            
+            try {
+                // ИСПРАВЛЕННЫЙ URL - убираем лишний слэш в начале
+                const response = await fetch(`/admin_panel/bots/${botId}/groups/subscriber`);
+                
+                // Проверяем статус ответа
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                // Проверяем Content-Type
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error(`Ожидался JSON, получен: ${contentType}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.groups) {
+                    // Фильтруем группы по стране
+                    const filteredGroups = data.groups.filter(group => {
+                        const groupCountry = group.country_name || group.country__name || '';
+                        return groupCountry && groupCountry.toLowerCase() === country.toLowerCase();
+                    });
+                    
+                    // Обновляем список групп
+                    const groupsContainer = document.querySelector('.channels-grid');
+                    if (groupsContainer) {
+                        groupsContainer.innerHTML = '';
+                        
+                        if (filteredGroups.length > 0) {
+                            filteredGroups.forEach(group => {
+                                const groupItem = document.createElement('div');
+                                groupItem.className = 'channel-item d-flex align-items-center justify-content-between p-2 border rounded mb-2';
+                                groupItem.innerHTML = `
+                                    <span class="channel-name" title="${group.name}">
+                                        ${group.name}
+                                    </span>
+                                    <span class="text-muted small">
+                                        ${group.subscribers_count || 0} подписчиков
+                                    </span>
+                                `;
+                                groupsContainer.appendChild(groupItem);
+                            });
+                        } else {
+                            groupsContainer.innerHTML = '<div class="text-muted small">Нет других групп в этой стране</div>';
+                        }
+                    }
+                    
+                    // Обновляем счетчик в заголовке
+                    const sectionBar = document.querySelector('.section-bar:last-of-type');
+                    if (sectionBar) {
+                        const otherGroupsCount = filteredGroups.length;
+                        sectionBar.textContent = `Бот также подписан в других группах по стране (${otherGroupsCount} групп)`;
+                    }
+                    
+                    alert(`Список обновлен. Найдено ${filteredGroups.length} групп в стране "${country}"`);
+                } else {
+                    alert('Ошибка при получении списка групп: ' + (data.error || 'Неизвестная ошибка'));
+                }
+            } catch (error) {
+                console.error('Ошибка при обновлении списка групп:', error);
+                alert('Ошибка при обновлении списка групп: ' + error.message);
+            } finally {
+                this.disabled = false;
+                this.textContent = originalText;
+            }
+        });
+    }
+
+    // === ИНИЦИАЛИЗАЦИЯ КНОПКИ "ЗАПУСК СЕЙЧАС" ===
+    const runNowBtn = document.getElementById('run-now-btn');
+    if (runNowBtn) {
+        runNowBtn.addEventListener('click', function() {
+            // Устанавливаем скрытое поле в 1
+            const runNowInput = document.getElementById('run_now_input');
+            if (runNowInput) {
+                runNowInput.value = '1';
+            }
+            
+            // Сохраняем задачу
+            const mainForm = document.getElementById('main-form');
+            if (mainForm) {
+                // Добавляем визуальную индикацию
+                const originalHtml = this.innerHTML;
+                this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Сохранение...';
+                this.disabled = true;
+                
+                setTimeout(() => {
+                    mainForm.submit();
+                }, 100);
+            }
+        });
+    }
+
+    // === ФИНАЛЬНАЯ ИНИЦИАЛИЗАЦИЯ ===
+    updateFieldRequirements();
+});
+</script>
+{% endblock %}

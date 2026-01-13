@@ -1,0 +1,243 @@
+<!-- templates/admin_panel/plugins/view_boost/task_edit.html -->
+{% extends "adminlte/base.html" %}
+{% block body_class %}page-scroll{% endblock %}
+{% load static %}
+{% load filters %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+
+    <!-- ===== Заголовок ===== -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h1 class="mb-0">{{ page_title }}</h1>
+
+      <!-- Справа: тумблер активности + Удалить -->
+      <div class="d-flex align-items-center" style="gap:12px;">
+        <span>Выкл</span>
+        <label class="switch switch-blue mb-0">
+          <input type="checkbox" id="toggle-active" {% if task.is_active %}checked{% endif %}>
+          <span class="slider round"></span>
+        </label>
+        <span>Вкл</span>
+        <input type="hidden" name="is_active" id="is_active" form="main-form" value="{% if task.is_active %}1{% else %}0{% endif %}">
+
+        {% if task %}
+        <form method="post" action="{% url 'admin_panel:view_boost_task_delete' task.id %}" 
+              onsubmit="return confirm('Удалить задачу #{{ task.id }}?');">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Удалить</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ===== Форма ===== -->
+    <form method="post" id="main-form">
+      {% csrf_token %}
+      <div class="task-form bordered-box p-3 bg-white rounded mb-4">
+
+        <!-- Канал-группа -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Канал-группа</div>
+          <div class="right">
+            <select name="target_id" class="form-control" required>
+              <option value="">Выберите канал из списка</option>
+              {% for e in entities %}
+                <option value="{{ e.id }}" {% if task and task.target_id == e.id %}selected{% endif %}>
+                  {{ e.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Коэффициент просмотров -->
+        <div class="form-row mb-3">
+          <div class="left" style="width:220px;">Коэффициент просмотров</div>
+          <div class="right d-flex align-items-center" style="gap:10px;">
+            <input type="number" name="view_coefficient" min="1" max="100" class="form-control" style="width:100px;"
+                   value="{{ task.view_coefficient|default:25 }}" required>
+            <span>%</span>
+          </div>
+        </div>
+
+        <!-- Нормализовать посты -->
+        <div class="form-row mb-3 align-items-center">
+            <div class="left" style="width:220px;">Нормализовать посты</div>
+            <div class="right d-flex flex-wrap align-items-center" style="gap:16px;">
+                <label class="circle-day d-flex align-items-center mb-1">
+                    <input type="radio" name="normalization_mode" value="daily"
+                           {% if not task or task.normalization_mode == "daily" %}checked{% endif %}>
+                    <span class="dot"></span>
+                    <span class="day-label ml-1">Суточный режим</span>
+                </label>
+
+                <label class="circle-day d-flex align-items-center mb-1">
+                    <input type="radio" name="normalization_mode" value="morning"
+                           {% if task.normalization_mode == "morning" %}checked{% endif %}>
+                    <span class="dot"></span>
+                    <span class="day-label ml-1">Утренний режим</span>
+                </label>
+
+                <label class="circle-day d-flex align-items-center mb-1">
+                    <input type="radio" name="normalization_mode" value="evening"
+                           {% if task.normalization_mode == "evening" %}checked{% endif %}>
+                    <span class="dot"></span>
+                    <span class="day-label ml-1">Вечерний режим</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Показывать расход за -->
+        <div class="form-row mb-3 align-items-center">
+            <div class="left" style="width:220px;">Показывать расход за</div>
+            <div class="right d-flex flex-wrap align-items-center" style="gap:16px;">
+                <label class="circle-day d-flex align-items-center mb-1">
+                    <input type="radio" name="show_expenses_for" value="month"
+                           {% if not task or task.show_expenses_for == "month" %}checked{% endif %}>
+                    <span class="dot"></span>
+                    <span class="day-label ml-1">Месяц</span>
+                </label>
+
+                <label class="circle-day d-flex align-items-center mb-1">
+                    <input type="radio" name="show_expenses_for" value="week"
+                           {% if task.show_expenses_for == "week" %}checked{% endif %}>
+                    <span class="dot"></span>
+                    <span class="day-label ml-1">Неделя</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Кнопки -->
+        <div class="form-row mt-4">
+          <div class="left"></div>
+          <div class="right d-flex" style="gap:12px;">
+            <button type="submit" class="btn btn-success">Сохранить в БД</button>
+            <a href="{% url 'admin_panel:view_boost_tasks_view' %}" class="btn btn-secondary">Отмена</a>
+          </div>
+        </div>
+
+      </div>
+    </form>
+
+    <!-- ===== Таблица задач для быстрого доступа ===== -->
+    <div class="bordered-box p-3 bg-white rounded">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="mb-0">Все задачи умного просмотра</h3>
+        <span class="col-toggle-btn" title="Управление столбцами">
+          <i class="fas fa-cog"></i>
+        </span>
+      </div>
+      
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover" id="viewBoostAllTable" data-sortable data-paginate>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Канал-группа</th>
+              <th class="col-status">Статус</th>
+              <th>Всего подписчиков</th>
+              <th>Просмотров на пост</th>
+              <th>Расход</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for t in all_tasks %}
+            <tr>
+              <!-- ID -->
+              <td class="text-center">{{ t.id }}</td>
+
+              <!-- Канал-группа -->
+              <td>{{ t.target.name|default:"—" }}</td>
+
+              <!-- Статус -->
+              <td class="col-status text-center">
+                {% if t.is_active %}
+                  <span class="status-dot active" title="Активна"></span>
+                {% else %}
+                  <span class="status-dot gray" title="Неактивна"></span>
+                {% endif %}
+              </td>
+
+              <!-- Всего подписчиков -->
+              <td class="text-center">{{ t.subscribers_count|default:"0" }}</td>
+
+              <!-- Просмотров на пост -->
+              <td class="text-center">{{ t.view_coefficient|default:"0" }}%</td>
+
+              <!-- Расход -->
+              <td class="text-center">
+                {{ t.period_expense|floatformat:2 }} {{ t.period_label }}
+              </td>
+              
+              <!-- Действия -->
+              <td class="text-center text-nowrap">
+                <a href="{% url 'admin_panel:view_boost_task_edit' t.id %}" title="Редактировать">
+                  <img src="{% static 'admin_panel/img/edit.png' %}" alt="Редактировать" class="icon-16 mr-2">
+                </a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="7" class="text-center text-muted">Задачи отсутствуют</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<style>
+  .bordered-box { border:1px solid #e0e0e0; }
+  .form-row { display:flex; align-items:center; }
+  .form-row .left { font-weight:600; color:#444; }
+  .form-row .right { flex:1; }
+  
+  .btn-mode input[type="radio"] { display:none; }
+  .btn-mode .mode-label {
+    display: inline-block;
+    padding: 8px 16px;
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s;
+    color: #495057;
+  }
+  .btn-mode input[type="radio"]:checked + .mode-label {
+    background: #007bff;
+    border-color: #007bff;
+    color: white;
+  }
+</style>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    // Тумблер активности
+    const toggle = document.getElementById("toggle-active");
+    const hidden = document.getElementById("is_active");
+    if (toggle && hidden) {
+      toggle.addEventListener("change", () => {
+        hidden.value = toggle.checked ? "1" : "0";
+      });
+    }
+  });
+</script>
+
+<!-- Подключение скриптов для таблицы -->
+<script type="module">
+  import { initSortableTables } from "{% static 'admin_panel/js/sortableTable.js' %}";
+  import { initTablePagination } from "{% static 'admin_panel/js/pagination.js' %}";
+  import "{% static 'admin_panel/js/colToggles.js' %}";
+
+  initSortableTables();
+  initTablePagination(20);
+</script>
+
+{% endblock %}

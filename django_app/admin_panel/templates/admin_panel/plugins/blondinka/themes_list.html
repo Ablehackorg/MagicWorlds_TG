@@ -1,0 +1,103 @@
+{% extends "adminlte/base.html" %}
+{% load static %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h1 class="mb-0">Темы групп</h1>
+      <span class="col-toggle-btn" title="Управление столбцов">
+        <i class="fas fa-cog"></i>
+      </span>
+    </div>
+
+    <div class="d-flex justify-content-end mb-3">
+      <a href="{% url 'admin_panel:theme_add' %}" class="btn btn-add">
+        <i class="fas fa-plus"></i> Добавить
+      </a>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover" id="themesTable" data-sortable data-paginate>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Название темы</th>
+            <th>Диалогов</th>
+            <th>Используется в задачах</th>
+            <th>Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for theme in themes %}
+          <tr>
+            <!-- ID -->
+            <td class="text-center">{{ theme.id }}</td>
+
+            <!-- Название темы -->
+            <td>{{ theme.name }}</td>
+
+            <!-- Количество диалогов -->
+            <td class="text-center">{{ theme.dialogs.count }}</td>
+
+            <!-- Используется в задачах -->
+            <td class="text-center">{{ theme.tasks.count }}</td>
+
+            <!-- Действия -->
+            <td class="text-center text-nowrap">
+              <a href="{% url 'admin_panel:theme_edit' theme.id %}" title="Редактировать">
+                <img src="{% static 'admin_panel/img/edit.png' %}" alt="Редактировать" class="icon-16 mr-2">
+              </a>
+              <form method="post" action="{% url 'admin_panel:theme_delete' theme.id %}"
+                    style="display:inline;" onsubmit="return confirm('Удалить тему «{{ theme.name }}»?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-link p-0 m-0" title="Удалить">
+                  <img src="{% static 'admin_panel/img/delete.png' %}" alt="Удалить" class="icon-16">
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted">Темы отсутствуют</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</section>
+
+<style>
+.btn-add {
+  background-color: #28a745;
+  color: white;
+  border: none;
+}
+.btn-add:hover {
+  background-color: #218838;
+  color: white;
+}
+.icon-16 {
+  width: 16px;
+  height: 16px;
+}
+.badge-info {
+  background-color: #17a2b8;
+}
+.badge-secondary {
+  background-color: #6c757d;
+}
+</style>
+
+<script type="module">
+  import { initSortableTables } from "{% static 'admin_panel/js/sortableTable.js' %}";
+  import { initTablePagination } from "{% static 'admin_panel/js/pagination.js' %}";
+  import "{% static 'admin_panel/js/colToggles.js' %}";
+
+  initSortableTables();
+  initTablePagination(20);
+</script>
+
+{% endblock %}

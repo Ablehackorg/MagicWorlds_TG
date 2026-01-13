@@ -1,0 +1,155 @@
+[file name]: task_common.js
+[file content begin]
+// Общие функции для task_create.html и task_edit.html
+
+const TaskCommon = {
+    baseImg: "{% static 'admin_panel/img/' %}",
+    
+    log: (...a) => console.log('%c[TasksUI]','color:#2c3e50;font-weight:700',...a),
+    warn: (...a) => console.warn('%c[TasksUI]','color:#f39c12;font-weight:700',...a),
+    err: (...a) => console.error('%c[TasksUI]','color:#e74c3c;font-weight:700',...a),
+
+    // Инициализация фильтра источника
+    initSourceFilter: function(sourceSelect, sourceToggle) {
+        if (!sourceSelect || !sourceToggle) return;
+        
+        const sourceOptions = Array.from(sourceSelect.querySelectorAll('option'));
+        
+        function filterSourceOptions(initial = false) {
+            const isOwn = !sourceToggle.checked;
+            const filterValue = isOwn ? 'Свой' : 'Чужой';
+            
+            // Перестраиваем список
+            const selectedId = sourceSelect.value;
+            sourceSelect.innerHTML = '';
+            sourceSelect.appendChild(sourceOptions[0]);
+            
+            sourceOptions.slice(1).forEach(option => {
+                if (option.dataset.owner === filterValue) {
+                    sourceSelect.appendChild(option);
+                }
+            });
+            
+            // Если был выбран элемент, восстанавливаем его, если он подходит под фильтр
+            if (selectedId) {
+                const exists = Array.from(sourceSelect.options).some(o => o.value === selectedId);
+                if (exists) {
+                    sourceSelect.value = selectedId;
+                } else if (!initial) {
+                    sourceSelect.selectedIndex = 0;
+                }
+            }
+        }
+        
+        // При изменении переключателя
+        sourceToggle.addEventListener('change', () => filterSourceOptions());
+        
+        // --- Первичная инициализация ---
+        const selectedOpt = sourceSelect.options[sourceSelect.selectedIndex];
+        if (selectedOpt && selectedOpt.dataset.owner) {
+            // если выбранный источник "Свой" — переключатель выключен (left position)
+            sourceToggle.checked = selectedOpt.dataset.owner === 'Чужой';
+        }
+        
+        // Применяем фильтр в соответствии с состоянием переключателя
+        filterSourceOptions(true);
+    },
+
+    // Функция для выбора всех элементов в группе
+    selectAllInGroup: function(groupName, currentGroup, baseOptions, selectedIds, addTargetRow, removeTargetRow, refreshTomSelect) {
+        // Получаем все элементы текущей группы
+        const groupItems = baseOptions.filter(opt => {
+            if (currentGroup === 'country') {
+                return opt.country === groupName;
+            } else if (currentGroup === 'category') {
+                return opt.category === groupName;
+            }
+            return false;
+        });
+        
+        // Проверяем, все ли элементы группы уже выбраны
+        const allSelected = groupItems.every(item => selectedIds.has(String(item.value)));
+        
+        if (allSelected) {
+            // Если все выбраны - снимаем выделение со всех
+            groupItems.forEach(item => {
+                if (selectedIds.has(String(item.value))) {
+                    removeTargetRow(item.value);
+                }
+            });
+        } else {
+            // Если не все выбраны - добавляем все
+            groupItems.forEach(item => {
+                if (!selectedIds.has(String(item.value))) {
+                    addTargetRow(item.value);
+                }
+            });
+        }
+        
+        // Обновляем TomSelect
+        refreshTomSelect();
+    },
+
+    // Обработчик кликов в dropdown
+    handleDropdownClick: function(ev, ts, selectedIds, addTargetRow, removeTargetRow, refreshTomSelect, currentGroup, baseOptions) {
+        // Обработка клика по заголовку группы
+        const groupHeader = ev.target.closest('.group-header');
+        if (groupHeader) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            
+            const groupName = groupHeader.dataset.group;
+            this.selectAllInGroup(groupName, currentGroup, baseOptions, selectedIds, addTargetRow, removeTargetRow, refreshTomSelect);
+            return;
+        }
+        
+        // Обработка клика по чекбоксу элемента
+        const cb = ev.target.closest('.opt-check');
+        if (!cb) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        const id = cb.getAttribute('data-val');
+        if (!id || id.startsWith('group_')) return; // Игнорируем заголовки групп
+        
+        this.toggleSelection(id, selectedIds, addTargetRow, removeTargetRow);
+        
+        // Принудительно обновляем все чекбоксы после изменения
+        setTimeout(() => {
+            if (ts.dropdown_content) {
+                const options = ts.dropdown_content.querySelectorAll('.option');
+                options.forEach(option => {
+                    const value = option.getAttribute('data-value');
+                    const checkbox = option.querySelector('.opt-check');
+                    if (checkbox && !value.startsWith('group_')) {
+                        checkbox.checked = selectedIds.has(value);
+                    }
+                });
+            }
+        }, 0);
+    },
+
+    // Переключение выбора элемента
+    toggleSelection: function(id, selectedIds, addTargetRow, removeTargetRow) {
+        if (selectedIds.has(id)) {
+            removeTargetRow(id);
+        } else {
+            addTargetRow(id);
+        }
+    },
+
+    // Функции фильтрации и группировки
+    passFilters: function(ent, currentDest, currentOwner) {
+        const dOk = currentDest ? ent.dest === currentDest : true;
+        const oOk = currentOwner ? ent.owner === currentOwner : true;
+        return dOk && oOk;
+    },
+
+    sortByGrouping: function(arr, currentGroup) {
+        if (currentGroup === 'order'){
+            return arr.slice().sort((a,b)=>(String(a.order).localeCompare(String(b.order)) || a.text.localeCompare(b.text)));
+        }
+        const key = currentGroup === 'country' ? 'country' : 'category';
+        return arr.slice().sort((a,b)=>(String(a[key]).localeCompare(String(b[key])) || a.text.localeCompare(b.text)));
+    }
+};
+[file content end]

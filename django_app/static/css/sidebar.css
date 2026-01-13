@@ -1,0 +1,178 @@
+:root {
+  --sidebar-w: 260px; /* дефолт */
+}
+
+/* сама панель */
+.main-sidebar {
+  width: var(--sidebar-w) !important;
+  flex: 0 0 var(--sidebar-w) !important;
+  max-width: var(--sidebar-w) !important;
+  transition: width 0.25s ease;
+  overflow-y: auto;
+  overflow-x: hidden;
+  white-space: nowrap;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 1038;
+}
+/* Скрыть полосу прокрутки, не отключая скролл */
+.main-sidebar {
+  -ms-overflow-style: none;    /* IE/старый Edge */
+  scrollbar-width: none;       /* Firefox */
+}
+.main-sidebar::-webkit-scrollbar { /* Chrome/Safari/Opera */
+  width: 0;
+  height: 0;
+}
+
+
+/* уменьшение шрифта только в сайдбаре */
+.main-sidebar .nav-link,
+.main-sidebar .nav-link p,
+.main-sidebar .brand-text {
+  font-size: 1.1rem; 
+}
+
+/* контент двигается */
+.content-wrapper,
+.main-header,
+.main-footer {
+  margin-left: var(--sidebar-w) !important;
+  transition: margin-left 0.3s ease;
+}
+
+/* схлопнутая панель */
+body.sidebar-collapse .main-sidebar {
+  margin-left: calc(-1 * var(--sidebar-w)) !important;
+}
+body.sidebar-collapse .content-wrapper,
+body.sidebar-collapse .main-header,
+body.sidebar-collapse .main-footer {
+  margin-left: 0 !important;
+}
+
+/* оформление ссылок */
+.main-sidebar .nav-link {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.main-sidebar .nav-link p {
+  margin: 0;
+  flex: 1;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.nav-sidebar .nav-treeview {
+  overflow: visible !important;
+}
+
+/* ============================= */
+/* ВЫДЕЛЕНИЕ УРОВНЕЙ МЕНЮ        */
+/* ============================= */
+
+/* Верхний уровень (разделы) */
+.main-sidebar .nav-sidebar > .nav-item > .nav-link {
+  background-color: #2f3542;   /* фиксированный цвет */
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+/* Отключаем подсветку "active" для разделов */
+.main-sidebar .nav-sidebar > .nav-item > .nav-link.active {
+  background-color: #2f3542 !important;
+  color: #ffffff !important;
+}
+
+/* Средний уровень (подразделы) */
+.main-sidebar .nav-treeview > .nav-item.has-treeview > .nav-link {
+  background-color: #3d465a;   /* фиксированный цвет */
+  color: #ffffff !important;
+  font-weight: 500;
+}
+
+/* Отключаем подсветку "active" для подразделов */
+.main-sidebar .nav-treeview > .nav-item.has-treeview > .nav-link.active {
+  background-color: #3d465a !important;
+  color: #ffffff !important;
+}
+
+/* Нижний уровень (обычные пункты) */
+.main-sidebar .nav-treeview > .nav-item > .nav-link {
+  background-color: transparent;
+  color: #c2c7d0;
+  font-weight: normal;
+}
+
+/* Активный нижний пункт */
+.main-sidebar .nav-treeview > .nav-item > .nav-link.active {
+  background-color: #1f6feb;   /* синий для активного */
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+/* Меняем разделитель хлебных крошек */
+.breadcrumb-item + .breadcrumb-item::before {
+  content: " >>> ";
+  color: #6c757d;
+  margin-left: 0.05rem;   /* минимальный отступ слева */
+  margin-right: 0.1rem;  /* стрелка почти прилипает к родителю */
+}
+
+
+
+/* Ссылки внутри хлебных крошек */
+.breadcrumb-item a {
+  color: #6c757d !important;  /* серый */
+  text-decoration: none;      /* без подчёркивания */
+  transition: color 0.2s;
+}
+
+/* уменьшаем отступы между хлебными крошками и заголовками */
+.content-header {
+  margin-bottom: 0rem;
+}
+
+/* Хлебные крошки — увеличенный и аккуратный текст */
+.breadcrumb {
+  font-size: 1rem;       /* базовый размер (16px при root=16px) */
+  font-weight: 500;      /* немного жирнее */
+}
+
+.breadcrumb-item {
+  font-size: 1rem;       /* тот же размер для каждого элемента */
+}
+
+.breadcrumb-item a {
+  font-size: 1rem;       /* ссылки внутри */
+}
+
+
+.breadcrumb-item a:hover {
+  color: #343a40 !important;  /* тёмно-серый при наведении */
+  text-decoration: underline;
+}
+
+/* Последний элемент (активный) */
+.breadcrumb-item.active {
+  color: #6c757d !important;  /* тот же серый */
+  font-weight: 500;
+}
+
+
+#brand-clock {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #c2c7d0;  /* серый, как текст в сайдбаре */
+  white-space: nowrap;
+}
+
+/* Окрасить только уровень "Раздел → Подраздел". Нижние пункты не трогаем. */
+.main-sidebar .nav-sidebar > .nav-item.has-treeview > ul.nav-treeview > .nav-item > .nav-link:not(.active) {
+  background-color: #3d465a;
+  color: #ffffff !important;
+}

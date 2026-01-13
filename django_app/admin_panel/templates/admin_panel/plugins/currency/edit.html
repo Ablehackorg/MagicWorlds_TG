@@ -1,0 +1,174 @@
+{% extends "adminlte/base.html" %}
+{% load static %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="card card-outline card-primary">
+            <div class="card-header">
+                <h3 class="card-title">{{ page_title }}</h3>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                <div class="row">
+                    <div class="col-md-10">
+                        <h3 class="card-title">{{ page_title }}</h3>
+                    </div>
+                    <div class="col-md-2 text-right">
+                        <div class="custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
+                            <input type="checkbox" name="is_active" class="custom-control-input" id="isActiveSwitch" 
+                            {% if location.is_active %}checked{% endif %}>
+                            <label class="custom-control-label" for="isActiveSwitch">Вкл/Выкл</label>
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <div class="row">
+                    <!-- Основные данные -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Название (для админки):</label>
+                            <input type="text" name="name" class="form-control" value="{{ location.name|default:'' }}"
+                                placeholder="Напр. Таиланд - Валюта">
+                        </div>
+                        <div class="form-group">
+                            <label>Страна (из справочника):</label>
+                            <select name="country" class="form-control select2">
+                                <option value="">--- Выберите страну ---</option>
+                                {% for c in countries %}
+                                <option value="{{ c.id }}" {% if location.country_id == c.id %}selected{% endif %}>
+                                    {{ c.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Эмодзи страны:</label>
+                            <input type="text" name="emoji" class="form-control" value="{{ location.emoji|default:'' }}"
+                                placeholder="например, 🇹🇭">
+                        </div>
+                        <div class="form-group">
+                            <label>Хэштеги:</label>
+                            <input type="text" name="hashtag" class="form-control"
+                                value="{{ location.hashtag|default:'' }}" placeholder="#валюта #тайланд">
+                        </div>
+                    </div>
+
+                    <!-- Бот и чаты -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Бот для публикации:</label>
+                            <select name="bot" class="form-control select2">
+                                <option value="">--- Выберите бота ---</option>
+                                {% for b in bots %}
+                                <option value="{{ b.id }}" {% if location.bot_id == b.id %}selected{% endif %}>{{ b.name }} (@{{ b.username }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Основной чат (Цель):</label>
+                            <select name="main_chat" class="form-control select2">
+                                <option value="">--- Выберите чат/канал ---</option>
+                                {% for e in entities %}
+                                <option value="{{ e.id }}" {% if location.main_chat_id == e.id %}selected{% endif %}>{{ e.name }} (ID: {{ e.telegram_id }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Чат "Безопасный обмен":</label>
+                            <select name="safe_exchange" class="form-control select2">
+                                <option value="">--- Выберите чат/канал ---</option>
+                                {% for e in entities %}
+                                <option value="{{ e.id }}" {% if location.safe_exchange_id == e.id %}selected{% endif %}>
+                                    {{ e.name }} (ID: {{ e.telegram_id }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <hr>
+                <h5>Валютные пары (до 5)</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Из (Код, напр. THB)</th>
+                                <th>В (Код, напр. RUB)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pair in pairs %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td><input type="text" name="pair_{{ forloop.counter }}_from"
+                                        class="form-control form-control-sm" value="{{ pair.from_code|default:'' }}">
+                                </td>
+                                <td><input type="text" name="pair_{{ forloop.counter }}_to"
+                                        class="form-control form-control-sm" value="{{ pair.to_code|default:'' }}"></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <hr>
+                <h5>Внешние ссылки</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Google Rate URL:</label>
+                            <input type="url" name="google_rate_url" class="form-control"
+                                value="{{ location.google_rate_url }}">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>XE Rate URL:</label>
+                            <input type="url" name="xe_rate_url" class="form-control"
+                                value="{{ location.xe_rate_url }}">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group"><label>Банк-1 (URL):</label><input type="url" name="bank_1_url"
+                                class="form-control" value="{{ location.bank_1_url }}"></div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group"><label>Банк-2 (URL):</label><input type="url" name="bank_2_url"
+                                class="form-control" value="{{ location.bank_2_url }}"></div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group"><label>Банк-3 (URL):</label><input type="url" name="bank_3_url"
+                                class="form-control" value="{{ location.bank_3_url }}"></div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group"><label>ATM-банкоматы (URL):</label><input type="url" name="atm_url"
+                                class="form-control" value="{{ location.atm_url }}"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group"><label>Волшебная страна (URL):</label><input type="url"
+                                name="magic_country_url" class="form-control" value="{{ location.magic_country_url }}">
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="card-footer text-right">
+                <a href="{% url 'admin_panel:currency_list' %}" class="btn btn-default">Отмена</a>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+                {% if location.id %}
+                <a href="{% url 'admin_panel:currency_delete' location.id %}" class="btn btn-danger float-left"
+                    onclick="return confirm('Удалить эту локацию?')">Удалить</a>
+                {% endif %}
+            </div>
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}

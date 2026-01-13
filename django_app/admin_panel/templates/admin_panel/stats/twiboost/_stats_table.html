@@ -1,0 +1,53 @@
+<!-- admin_panel/stats/twiboost/_stats_table.html -->
+{% load static %}
+
+<p class="text-muted mb-2">
+  Неделя: {{ week_start|date:"d.m.Y" }} — {{ week_end|date:"d.m.Y" }}
+</p>
+
+<div class="table-responsive">
+  <table class="table table-bordered table-hover"
+         id="boosterStatsTable"
+         data-sortable data-paginate>
+    <thead>
+      <tr>
+        <th data-type="number">ID</th>
+        <th data-type="number">ID тарифа</th>
+        <th data-type="text">Раздел</th>
+        <th data-type="text">Канал</th>
+        <th data-type="number">Пн</th>
+        <th data-type="number">Вт</th>
+        <th data-type="number">Ср</th>
+        <th data-type="number">Чт</th>
+        <th data-type="number">Пт</th>
+        <th data-type="number">Сб</th>
+        <th data-type="number">Вс</th>
+        <th data-type="number">За неделю</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.id }}</td>
+        <td>{{ row.service_id }}</td>
+        <td>{{ row.module_display }}</td>  <!-- Используем новое поле -->
+        <td>{{ row.channel_name }}</td>
+        <td>{{ row.days.0|default:"0" }}</td>
+        <td>{{ row.days.1|default:"0" }}</td>
+        <td>{{ row.days.2|default:"0" }}</td>
+        <td>{{ row.days.3|default:"0" }}</td>
+        <td>{{ row.days.4|default:"0" }}</td>
+        <td>{{ row.days.5|default:"0" }}</td>
+        <td>{{ row.days.6|default:"0" }}</td>
+        <td>{{ row.total }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="12" class="text-center text-muted">  <!-- Исправлен colspan на 12 -->
+          Нет данных за выбранный период
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
